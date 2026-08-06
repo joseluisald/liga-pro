@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Trophy,
   Save,
@@ -21,14 +21,56 @@ interface ChampionshipViewProps {
   userRole: 'ADMIN' | 'OPERATOR' | 'VIEWER';
 }
 
+const DEFAULT_RULES: ChampionshipRule = {
+  pointsForWin: 3,
+  pointsForDraw: 1,
+  pointsForLoss: 0,
+  yellowCardsForSuspension: 3,
+  directRedCardSuspensionGames: 1,
+  matchDurationMinutes: 80,
+  startersCount: 11,
+  maxBenchCount: 9,
+  registrationFeeAmount: 500,
+  substitutionsAllowed: 7,
+  woGoalsGiven: 3,
+  tiebreakers: [
+    'POINTS',
+    'VICTORIES',
+    'GOAL_DIFFERENCE',
+    'GOALS_FOR',
+    'DIRECT_HEAD_TO_HEAD',
+    'FEWEST_CARDS',
+    'DRAW',
+  ],
+};
+
 export const ChampionshipView: React.FC<ChampionshipViewProps> = ({
   championship,
   onUpdateChampionship,
   userRole,
 }) => {
-  const [formData, setFormData] = useState<Partial<Championship>>({ ...championship });
-  const [rules, setRules] = useState<ChampionshipRule>({ ...championship.rules });
+  const [formData, setFormData] = useState<Partial<Championship>>(() => ({ ...championship }));
+  const [rules, setRules] = useState<ChampionshipRule>(() => ({
+    ...DEFAULT_RULES,
+    ...(championship?.rules || {}),
+    tiebreakers: Array.isArray(championship?.rules?.tiebreakers)
+      ? championship.rules.tiebreakers
+      : DEFAULT_RULES.tiebreakers,
+  }));
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (championship) {
+      setFormData({ ...championship });
+      setRules({
+        ...DEFAULT_RULES,
+        ...(championship.rules || {}),
+        tiebreakers: Array.isArray(championship.rules?.tiebreakers)
+          ? championship.rules.tiebreakers
+          : DEFAULT_RULES.tiebreakers,
+      });
+    }
+  }, [championship]);
 
   const tiebreakerLabels: Record<TiebreakerCriterion, string> = {
     POINTS: 'Pontos Conquistados',
@@ -291,7 +333,7 @@ export const ChampionshipView: React.FC<ChampionshipViewProps> = ({
             </p>
 
             <div className="space-y-2">
-              {rules.tiebreakers.map((crit, idx) => (
+              {(rules?.tiebreakers || DEFAULT_RULES.tiebreakers).map((crit, idx) => (
                 <div
                   key={crit}
                   className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200"
