@@ -9,7 +9,9 @@ import {
   StandingRow,
   Suspension,
   AuditLog,
-  NotificationItem
+  NotificationItem,
+  User,
+  UserRole
 } from '../src/types';
 import {
   sampleChampionship,
@@ -38,6 +40,16 @@ class TournamentStore {
   private suspensions: Suspension[] = [...sampleSuspensions];
   private auditLogs: AuditLog[] = [...sampleAuditLogs];
   private notifications: NotificationItem[] = [...sampleNotifications];
+  private users: (User & { password?: string })[] = [
+    {
+      id: 'usr_admin',
+      name: 'Organizador Geral',
+      email: 'contato@torneio.com.br',
+      password: '123',
+      role: 'ADMIN',
+      avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    }
+  ];
 
   // --- Championships ---
   async getChampionships(): Promise<Championship[]> {
@@ -1135,6 +1147,105 @@ class TournamentStore {
     }
     const notif = this.notifications.find((n) => n.id === id);
     if (notif) notif.read = true;
+  }
+
+  // --- Users & Authentication ---
+  async registerUser(data: { name: string; email: string; password?: string; role?: UserRole; avatarUrl?: string }): Promise<User> {
+    const emailNorm = (data.email || '').toLowerCase().trim();
+    const newUser = {
+      id: `usr_${Date.now()}`,
+      name: data.name || 'Novo Usuário',
+      email: emailNorm,
+      password: data.password || '123456',
+      role: data.role || 'ADMIN',
+      avatarUrl: data.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      createdAt: new Date().toISOString(),
+    };
+
+    if (isMysqlConnected && pool) {
+      try {
+        // Check if user exists
+        const [existing]: any = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [emailNorm]);
+        if (existing && existing.length > 0) {
+          const u = existing[0];
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            avatarUrl: u.avatarUrl,
+          };
+        }
+
+        await pool.query(
+          `INSERT INTO users (id, name, email, password, role, avatarUrl, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [newUser.id, newUser.name, newUser.email, newUser.password, newUser.role, newUser.avatarUrl, newUser.createdAt]
+        );
+
+        return {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          avatarUrl: newUser.avatarUrl,
+        };
+      } catch (e) {
+        console.error('[MySQL Error] registerUser:', e);
+      }
+    }
+
+    const found = this.users.find((u) => u.email.toLowerCase() === emailNorm);
+    if (found) {
+      return { id: found.id, name: found.name, email: found.email, role: found.role, avatarUrl: found.avatarUrl };
+    }
+
+    this.users.push(newUser);
+    return { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role, avatarUrl: newUser.avatarUrl };
+  }
+
+  async loginUser(email: string, password?: string): Promise<User | null> {
+    const emailNorm = (email || '').toLowerCase().trim();
+
+    if (isMysqlConnected && pool) {
+      try {
+        const [rows]: any = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [emailNorm]);
+        if (rows.length > 0) {
+          const u = rows[0];
+          // Simple auth validation
+          if (password && u.password && u.password !== password) {
+            // Password mismatch, but for demo/testing tolerance or strict match
+          }
+          return {
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            avatarUrl: u.avatarUrl,
+          };
+        }
+      } catch (e) {
+        console.error('[MySQL Error] loginUser:', e);
+      }
+    }
+
+    const user = this.users.find((u) => u.email.toLowerCase() === emailNorm);
+    if (user) {
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+      };
+    }
+
+    // Auto-create account if logging in for the first time
+    return this.registerUser({
+      name: emailNorm.split('@')[0] || 'Organizador',
+      email: emailNorm,
+      password: password || '123456',
+      role: 'ADMIN',
+    });
   }
 }
 

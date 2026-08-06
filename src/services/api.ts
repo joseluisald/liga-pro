@@ -9,10 +9,38 @@ import {
   StandingRow,
   Suspension,
   AuditLog,
-  NotificationItem
+  NotificationItem,
+  User,
+  UserRole
 } from '../types';
 
 const API_BASE = '/api';
+
+export async function registerUser(data: { name: string; email: string; password?: string; role?: UserRole; avatarUrl?: string }): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Erro ao cadastrar usuário');
+  }
+  return res.json();
+}
+
+export async function loginUser(data: { email: string; password?: string }): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Erro ao realizar login');
+  }
+  return res.json();
+}
 
 export async function fetchChampionships(): Promise<Championship[]> {
   try {
@@ -282,13 +310,13 @@ export const api = {
       return {
         championship: {
           id: id,
-          name: 'Copa Primavera 2024',
-          season: '2024',
-          startDate: '2024-03-01',
-          endDate: '2024-06-30',
-          city: 'São Paulo',
-          state: 'SP',
-          status: 'IN_PROGRESS',
+          name: 'Campeonato',
+          season: new Date().getFullYear().toString(),
+          startDate: new Date().toISOString().split('T')[0],
+          endDate: new Date().toISOString().split('T')[0],
+          city: '',
+          state: '',
+          status: 'PLANNING',
           maxTeams: 16,
           maxPlayersPerTeam: 20,
         },
@@ -306,6 +334,8 @@ export const api = {
   updateChampionship,
   createChampionship,
   fetchChampionships,
+  registerUser,
+  loginUser,
   createPlayer,
   updatePlayer,
   deletePlayer,

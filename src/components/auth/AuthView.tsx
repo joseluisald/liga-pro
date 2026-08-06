@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trophy, Mail, Lock, User as UserIcon, Shield, ArrowRight, Sparkles, Eye } from 'lucide-react';
 import { User, UserRole } from '../../types';
+import { api } from '../../services/api';
 
 interface AuthViewProps {
   onLoginSuccess: (user: User) => void;
@@ -19,7 +20,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -35,20 +36,30 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
-      const authenticatedUser: User = {
-        id: 'usr_' + Date.now(),
-        name: mode === 'REGISTER' ? name : (email.split('@')[0] || 'Organizador'),
-        email: email,
-        role: role,
-        avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80`,
-      };
+    try {
+      let authenticatedUser: User;
+      if (mode === 'REGISTER') {
+        authenticatedUser = await api.registerUser({
+          name,
+          email,
+          password,
+          role,
+        });
+      } else {
+        authenticatedUser = await api.loginUser({
+          email,
+          password,
+        });
+      }
 
       // Store local auth session
       localStorage.setItem('futgestao_user', JSON.stringify(authenticatedUser));
       onLoginSuccess(authenticatedUser);
-    }, 600);
+    } catch (err: any) {
+      setError(err.message || 'Falha na autenticação. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -221,6 +221,16 @@ async function createTables() {
       timestamp VARCHAR(100),
       \`read\` BOOLEAN,
       type VARCHAR(50)
+    );`,
+
+    `CREATE TABLE IF NOT EXISTS users (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL,
+      avatarUrl TEXT,
+      createdAt VARCHAR(100)
     );`
   ];
 
@@ -352,6 +362,21 @@ async function seedInitialData() {
       ]
     );
   }
+
+  // 11. Initial Admin User
+  await pool.query(
+    `INSERT IGNORE INTO users (id, name, email, password, role, avatarUrl, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      'usr_admin',
+      'Organizador Geral',
+      'contato@torneio.com.br',
+      '123456',
+      'ADMIN',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      new Date().toISOString()
+    ]
+  );
 
   console.log('[MySQL] Initial seed completed successfully!');
 }

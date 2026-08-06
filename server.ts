@@ -162,6 +162,29 @@ async function startServer() {
     res.json({ success: true });
   });
 
+  // Authentication & Users
+  apiRouter.post('/auth/register', async (req, res) => {
+    try {
+      const user = await store.registerUser(req.body);
+      res.status(201).json(user);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || 'Erro ao registrar usuário' });
+    }
+  });
+
+  apiRouter.post('/auth/login', async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      const user = await store.loginUser(email, password);
+      if (!user) {
+        return res.status(401).json({ error: 'E-mail ou senha inválidos' });
+      }
+      res.json(user);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message || 'Erro ao realizar login' });
+    }
+  });
+
   app.use('/api', apiRouter);
 
 
