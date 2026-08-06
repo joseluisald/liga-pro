@@ -1,0 +1,6 @@
+{
+  "name": "FutGestão Pro",
+  "description": "Sistema completo e profissional de gerenciamento de campeonatos de futebol com sorteio, controle ao vivo, súmulas e classificação.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
