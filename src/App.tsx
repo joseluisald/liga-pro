@@ -269,33 +269,22 @@ export function App() {
   // Public View route override
   if (activeModule === 'public') {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col">
-        <Navbar
-          championship={championship}
-          userRole={userRole}
-          currentUser={currentUser || undefined}
-          onSelectRole={handleSelectRole}
-          onSelectModule={setActiveModule}
-          onNewMatch={handleNewMatch}
-          onOpenChampionshipsHub={() => setIsChampHubOpen(true)}
-        />
+      <div className="min-h-screen bg-slate-950 flex flex-col text-slate-100 font-sans antialiased">
         <PublicView
           championship={championship}
+          championships={championships}
+          onSelectChampionship={handleSelectChampionship}
           standings={standings}
           matches={matches}
           players={players}
           teams={teams}
-          onBackToAdmin={() => handleSelectRole('ADMIN')}
-        />
-        <ChampionshipsHubModal
-          isOpen={isChampHubOpen}
-          onClose={() => setIsChampHubOpen(false)}
-          championships={championships}
-          selectedChampId={selectedChampId}
-          onSelectChampionship={handleSelectChampionship}
-          onCreateChampionship={handleCreateChampionship}
-          currentUser={currentUser}
-          onLogout={handleLogout}
+          onLoginClick={() => {
+            if (currentUser) {
+              handleSelectRole('ADMIN');
+            } else {
+              handleLogout();
+            }
+          }}
         />
       </div>
     );
