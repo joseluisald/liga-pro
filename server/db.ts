@@ -243,127 +243,15 @@ async function createTables() {
 async function seedInitialData() {
   if (!pool) return;
 
-  const [rows]: any = await pool.query('SELECT COUNT(*) as cnt FROM championships');
+  const [rows]: any = await pool.query('SELECT COUNT(*) as cnt FROM users');
   if (rows && rows[0] && rows[0].cnt > 0) {
-    console.log('[MySQL] Data already exists. Skipping initial seed.');
+    console.log('[MySQL] Users already exist. Skipping seed.');
     return;
   }
 
-  console.log('[MySQL] Seeding initial mock data into database...');
+  console.log('[MySQL] Seeding initial admin user into database...');
 
-  // 1. Championships
-  const c = sampleChampionship;
-  await pool.query(
-    `INSERT INTO championships (id, name, slug, description, startDate, endDate, location, address, city, state, organizerName, organizerPhone, organizerEmail, logoUrl, status, rules, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      c.id, c.name, c.slug, c.description, c.startDate, c.endDate, c.location,
-      c.address, c.city, c.state, c.organizerName, c.organizerPhone, c.organizerEmail,
-      c.logoUrl, c.status, JSON.stringify(c.rules), c.createdAt
-    ]
-  );
-
-  // 2. Teams
-  for (const t of sampleTeams) {
-    await pool.query(
-      `INSERT INTO teams (id, championshipId, name, shortName, primaryColor, secondaryColor, coachName, managerName, logoUrl, captainPlayerId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [t.id, t.championshipId, t.name, t.shortName, t.primaryColor, t.secondaryColor, t.coachName || '', t.managerName || '', t.logoUrl || '', t.captainPlayerId || null]
-    );
-  }
-
-  // 3. Players
-  for (const p of samplePlayers) {
-    await pool.query(
-      `INSERT INTO players (id, championshipId, teamId, fullName, displayName, nickname, birthDate, cpf, phone, email, position, shirtNumber, status, paymentStatus, amountPaid, paymentMethod, paymentDate, notes, skillLevel, photoUrl, stats)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        p.id, p.championshipId, p.teamId || null, p.fullName, p.displayName, p.nickname || '',
-        p.birthDate || '', p.cpf || '', p.phone || '', p.email || '', p.position,
-        p.shirtNumber, p.status, p.paymentStatus, p.amountPaid || 0, p.paymentMethod || null,
-        p.paymentDate || null, p.notes || '', p.skillLevel || 3, p.photoUrl || '', JSON.stringify(p.stats)
-      ]
-    );
-  }
-
-  // 4. Phases
-  for (const ph of samplePhases) {
-    await pool.query(
-      `INSERT INTO phases (id, championshipId, name, type, \`order\`, completed, qualifiedPerGroup)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [ph.id, ph.championshipId, ph.name, ph.type, ph.order, ph.completed, ph.qualifiedPerGroup]
-    );
-  }
-
-  // 5. Groups
-  for (const g of sampleGroups) {
-    await pool.query(
-      `INSERT INTO \`groups\` (id, phaseId, name, teamIds)
-       VALUES (?, ?, ?, ?)`,
-      [g.id, g.phaseId, g.name, JSON.stringify(g.teamIds)]
-    );
-  }
-
-  // 6. Matches
-  for (const m of sampleMatches) {
-    await pool.query(
-      `INSERT INTO matches (id, championshipId, phaseId, groupId, roundNumber, homeTeamId, awayTeamId, homeScore, awayScore, date, time, location, referee, status, currentMinute, halfTime, mvpPlayerId)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        m.id, m.championshipId, m.phaseId, m.groupId || null, m.roundNumber,
-        m.homeTeamId, m.awayTeamId, m.homeScore, m.awayScore, m.date, m.time,
-        m.location, m.referee, m.status, m.currentMinute || 0, m.halfTime || '1ST', m.mvpPlayerId || null
-      ]
-    );
-  }
-
-  // 7. Events
-  for (const ev of sampleEvents) {
-    await pool.query(
-      `INSERT INTO match_events (id, matchId, teamId, type, playerId, assistantPlayerId, playerOutId, playerInId, minute, reason, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        ev.id, ev.matchId, ev.teamId, ev.type, ev.playerId, ev.assistantPlayerId || null,
-        ev.playerOutId || null, ev.playerInId || null, ev.minute, ev.reason || '', ev.createdAt || new Date().toISOString()
-      ]
-    );
-  }
-
-  // 8. Suspensions
-  for (const s of sampleSuspensions) {
-    await pool.query(
-      `INSERT INTO suspensions (id, championshipId, playerId, playerName, teamName, matchId, gamesCount, gamesServed, reason, active, createdAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        s.id, s.championshipId, s.playerId, s.playerName, s.teamName, s.matchId || '',
-        s.gamesCount, s.gamesServed, s.reason, s.active, s.createdAt || new Date().toISOString()
-      ]
-    );
-  }
-
-  // 9. Audit Logs
-  for (const a of sampleAuditLogs) {
-    await pool.query(
-      `INSERT INTO audit_logs (id, championshipId, userId, userName, action, entity, entityId, details, timestamp)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        a.id, a.championshipId, a.userId, a.userName, a.action, a.entity, a.entityId, a.details, a.timestamp
-      ]
-    );
-  }
-
-  // 10. Notifications
-  for (const n of sampleNotifications) {
-    await pool.query(
-      `INSERT INTO notifications (id, title, message, timestamp, \`read\`, type)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [
-        n.id, n.title, n.message, n.timestamp, n.read, n.type
-      ]
-    );
-  }
-
-  // 11. Initial Admin User
+  // 1. Initial Admin User
   await pool.query(
     `INSERT IGNORE INTO users (id, name, email, password, role, avatarUrl, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -371,12 +259,11 @@ async function seedInitialData() {
       'usr_admin',
       'Organizador Geral',
       'contato@torneio.com.br',
-      '123456',
+      '123',
       'ADMIN',
       'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
       new Date().toISOString()
     ]
   );
-
   console.log('[MySQL] Initial seed completed successfully!');
 }

@@ -192,6 +192,26 @@ export async function createMatch(match: Partial<Match>): Promise<Match> {
   return res.json();
 }
 
+export async function generateFixtures(champId: string, options: {
+  format?: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+  startDate?: string;
+  time?: string;
+  location?: string;
+  daysBetweenRounds?: number;
+  clearExisting?: boolean;
+}): Promise<{ success: boolean; matches: Match[] }> {
+  const res = await fetch(`${API_BASE}/championships/${champId}/generate-fixtures`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || 'Erro ao gerar confrontos');
+  }
+  return res.json();
+}
+
 export async function updateMatch(id: string, match: Partial<Match>): Promise<Match> {
   const res = await fetch(`${API_BASE}/matches/${id}`, {
     method: 'PUT',
@@ -344,6 +364,7 @@ export const api = {
   deleteTeam,
   executeDraft: runDraftApi,
   createMatch,
+  generateFixtures,
   updateMatch,
   addMatchEvent: createMatchEvent,
   deleteMatchEvent,

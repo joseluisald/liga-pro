@@ -161,36 +161,51 @@ export function App() {
   const handleUpdateChampionship = async (updated: Partial<Championship>) => {
     const updatedChamp = await api.updateChampionship(selectedChampId, updated);
     setChampionship(updatedChamp);
+    await fetchData(selectedChampId);
   };
 
   const handleCreatePlayer = async (p: Partial<Player>) => {
     const newP = await api.createPlayer({ ...p, championshipId: selectedChampId });
-    setPlayers([...players, newP]);
+    if (newP) {
+      setPlayers((prev) => [...prev, newP]);
+      await fetchData(selectedChampId);
+    }
   };
 
   const handleUpdatePlayer = async (id: string, p: Partial<Player>) => {
     const updated = await api.updatePlayer(id, p);
-    setPlayers(players.map((item) => (item.id === id ? updated : item)));
+    if (updated) {
+      setPlayers((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      await fetchData(selectedChampId);
+    }
   };
 
   const handleDeletePlayer = async (id: string) => {
     await api.deletePlayer(id);
-    setPlayers(players.filter((item) => item.id !== id));
+    setPlayers((prev) => prev.filter((item) => item.id !== id));
+    await fetchData(selectedChampId);
   };
 
   const handleCreateTeam = async (t: Partial<Team>) => {
     const newT = await api.createTeam({ ...t, championshipId: selectedChampId });
-    setTeams([...teams, newT]);
+    if (newT) {
+      setTeams((prev) => [...prev, newT]);
+      await fetchData(selectedChampId);
+    }
   };
 
   const handleUpdateTeam = async (id: string, t: Partial<Team>) => {
     const updated = await api.updateTeam(id, t);
-    setTeams(teams.map((item) => (item.id === id ? updated : item)));
+    if (updated) {
+      setTeams((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      await fetchData(selectedChampId);
+    }
   };
 
   const handleDeleteTeam = async (id: string) => {
     await api.deleteTeam(id);
-    setTeams(teams.filter((item) => item.id !== id));
+    setTeams((prev) => prev.filter((item) => item.id !== id));
+    await fetchData(selectedChampId);
   };
 
   const handleAssignPlayerToTeam = async (playerId: string, teamId: string | null) => {
@@ -198,20 +213,35 @@ export function App() {
   };
 
   const handleExecuteDraft = async (data: any) => {
-    const result = await api.executeDraft(data);
-    setPlayers(result.players);
+    const result = await api.executeDraft({ ...data, championshipId: selectedChampId });
+    if (result && result.players) {
+      setPlayers(result.players);
+      await fetchData(selectedChampId);
+    }
+  };
+
+  const handleGenerateFixtures = async (options: any) => {
+    const res = await api.generateFixtures(selectedChampId, options);
+    await fetchData(selectedChampId);
+    return res;
   };
 
   const handleCreateMatch = async (m: Partial<Match>) => {
-    const newM = await api.createMatch({ ...m, championshipId: 'champ_1' });
-    setMatches([...matches, newM]);
+    const newM = await api.createMatch({ ...m, championshipId: selectedChampId });
+    if (newM) {
+      setMatches((prev) => [...prev, newM]);
+      await fetchData(selectedChampId);
+    }
   };
 
   const handleUpdateMatch = async (id: string, data: Partial<Match>) => {
     const updated = await api.updateMatch(id, data);
-    setMatches(matches.map((item) => (item.id === id ? updated : item)));
-    if (selectedMatchForLive && selectedMatchForLive.id === id) {
-      setSelectedMatchForLive(updated);
+    if (updated) {
+      setMatches((prev) => prev.map((item) => (item.id === id ? updated : item)));
+      if (selectedMatchForLive && selectedMatchForLive.id === id) {
+        setSelectedMatchForLive(updated);
+      }
+      await fetchData(selectedChampId);
     }
   };
 
@@ -291,23 +321,23 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
-      {/* Top Navbar */}
-      <Navbar
-        championship={championship}
-        userRole={userRole}
-        currentUser={currentUser || undefined}
-        onSelectRole={handleSelectRole}
+    <div className="h-screen w-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-row font-sans antialiased selection:bg-emerald-500 selection:text-slate-950">
+      {/* Responsive Sidebar extends all the way to top */}
+      <Sidebar
+        activeModule={activeModule}
         onSelectModule={setActiveModule}
-        onNewMatch={handleNewMatch}
         onOpenChampionshipsHub={() => setIsChampHubOpen(true)}
       />
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Responsive Sidebar */}
-        <Sidebar
-          activeModule={activeModule}
+      {/* Main Right Area containing Top Navbar and Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        <Navbar
+          championship={championship}
+          userRole={userRole}
+          currentUser={currentUser || undefined}
+          onSelectRole={handleSelectRole}
           onSelectModule={setActiveModule}
+          onNewMatch={handleNewMatch}
           onOpenChampionshipsHub={() => setIsChampHubOpen(true)}
         />
 
@@ -362,6 +392,7 @@ export function App() {
                 players={players}
                 teams={teams}
                 onExecuteDraft={handleExecuteDraft}
+                onGenerateFixtures={handleGenerateFixtures}
                 userRole={userRole}
               />
             )}
@@ -374,6 +405,8 @@ export function App() {
                 standings={standings}
                 matches={matches}
                 teams={teams}
+                onGenerateFixtures={handleGenerateFixtures}
+                userRole={userRole}
               />
             )}
 
@@ -385,6 +418,7 @@ export function App() {
                 onCreateMatch={handleCreateMatch}
                 onUpdateMatch={handleUpdateMatch}
                 onOpenLiveOperator={handleOpenLiveOperator}
+                onGenerateFixtures={handleGenerateFixtures}
                 userRole={userRole}
                 autoOpenCreateModal={autoOpenCreateMatch}
                 onCloseAutoOpen={() => setAutoOpenCreateMatch(false)}

@@ -11,9 +11,11 @@ import {
   Sliders,
   Sparkles,
   Edit2,
-  X
+  X,
+  Shuffle
 } from 'lucide-react';
 import { Match, Team, Phase } from '../../types';
+import { FixturesDrawModal } from '../draft/FixturesDrawModal';
 
 interface MatchesViewProps {
   matches: Match[];
@@ -22,6 +24,14 @@ interface MatchesViewProps {
   onCreateMatch: (m: Partial<Match>) => void;
   onUpdateMatch: (id: string, m: Partial<Match>) => void;
   onOpenLiveOperator: (matchId: string) => void;
+  onGenerateFixtures?: (options: {
+    format: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+    startDate: string;
+    time: string;
+    location: string;
+    daysBetweenRounds: number;
+    clearExisting: boolean;
+  }) => Promise<{ success: boolean; matches: any[] }>;
   userRole: 'ADMIN' | 'OPERATOR' | 'VIEWER';
   autoOpenCreateModal?: boolean;
   onCloseAutoOpen?: () => void;
@@ -34,6 +44,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   onCreateMatch,
   onUpdateMatch,
   onOpenLiveOperator,
+  onGenerateFixtures,
   userRole = 'ADMIN',
   autoOpenCreateModal,
   onCloseAutoOpen,
@@ -43,6 +54,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   const [selectedTeam, setSelectedTeam] = useState<string>('ALL');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFixturesModalOpen, setIsFixturesModalOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Partial<Match> | null>(null);
 
   useEffect(() => {
@@ -110,15 +122,36 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
         </div>
 
         {userRole === 'ADMIN' && (
-          <button
-            onClick={handleOpenAddModal}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Agendar Partida
-          </button>
+          <div className="flex items-center gap-3">
+            {onGenerateFixtures && (
+              <button
+                onClick={() => setIsFixturesModalOpen(true)}
+                className="px-4 py-2.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-emerald-400 font-bold rounded-xl text-xs flex items-center gap-2 border border-slate-700 shadow-sm transition-all"
+              >
+                <Shuffle className="w-4 h-4 text-emerald-400" />
+                Sortear / Gerar Tabela
+              </button>
+            )}
+
+            <button
+              onClick={handleOpenAddModal}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Agendar Partida
+            </button>
+          </div>
         )}
       </div>
+
+      {onGenerateFixtures && (
+        <FixturesDrawModal
+          isOpen={isFixturesModalOpen}
+          onClose={() => setIsFixturesModalOpen(false)}
+          teams={teams}
+          onGenerateFixtures={onGenerateFixtures}
+        />
+      )}
 
       {/* Filters Bar */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">

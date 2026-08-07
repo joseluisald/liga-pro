@@ -81,21 +81,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-8 flex items-center justify-between sticky top-0 z-40 transition-colors">
       {/* High Density Header Info */}
       <div className="flex items-center gap-2 sm:gap-3">
-        <button
-          onClick={onOpenChampionshipsHub}
-          className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 transition-colors cursor-pointer text-left group"
-          title="Clique para Selecionar ou Cadastrar Outro Campeonato"
-        >
-          <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest hidden lg:inline">
-            Trocar
-          </span>
-          <h2 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100 truncate max-w-[140px] sm:max-w-xs group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-            {champ?.name || 'Copa dos Campeões Fut7 2026'}
-          </h2>
-          <span className="text-[10px] text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 font-bold">
-            ▼
-          </span>
-        </button>
+        <h2 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100 truncate max-w-[200px] sm:max-w-md">
+          {champ?.name || 'Copa dos Campeões Fut7 2026'}
+        </h2>
       </div>
 
       {/* High Density Right Actions */}

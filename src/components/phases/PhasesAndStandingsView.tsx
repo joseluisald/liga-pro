@@ -7,10 +7,12 @@ import {
   CheckCircle2,
   ChevronRight,
   Shield,
-  FileText
+  FileText,
+  Shuffle
 } from 'lucide-react';
 import { Phase, Group, StandingRow, Championship, Team, Match } from '../../types';
 import { generateStandingsPdf } from '../../utils/pdfGenerator';
+import { FixturesDrawModal } from '../draft/FixturesDrawModal';
 
 interface PhasesAndStandingsViewProps {
   championship: Championship;
@@ -19,6 +21,15 @@ interface PhasesAndStandingsViewProps {
   standings: StandingRow[];
   matches: Match[];
   teams: Team[];
+  onGenerateFixtures?: (options: {
+    format: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+    startDate: string;
+    time: string;
+    location: string;
+    daysBetweenRounds: number;
+    clearExisting: boolean;
+  }) => Promise<{ success: boolean; matches: any[] }>;
+  userRole?: 'ADMIN' | 'OPERATOR' | 'VIEWER';
 }
 
 export const PhasesAndStandingsView: React.FC<PhasesAndStandingsViewProps> = ({
@@ -28,8 +39,11 @@ export const PhasesAndStandingsView: React.FC<PhasesAndStandingsViewProps> = ({
   standings = [],
   matches = [],
   teams = [],
+  onGenerateFixtures,
+  userRole = 'ADMIN',
 }) => {
   const [activePhaseId, setActivePhaseId] = useState<string>(phases[0]?.id || 'phase_1');
+  const [isFixturesModalOpen, setIsFixturesModalOpen] = useState(false);
 
   const currentPhase = (phases || []).find((p) => p.id === activePhaseId);
 
@@ -51,14 +65,35 @@ export const PhasesAndStandingsView: React.FC<PhasesAndStandingsViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={handleDownloadPdf}
-          className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs flex items-center gap-2 border border-slate-700 shadow-sm transition-all"
-        >
-          <Download className="w-4 h-4 text-emerald-400" />
-          Exportar Tabela em PDF
-        </button>
+        <div className="flex items-center gap-3">
+          {onGenerateFixtures && userRole === 'ADMIN' && (
+            <button
+              onClick={() => setIsFixturesModalOpen(true)}
+              className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
+            >
+              <Shuffle className="w-4 h-4 text-white" />
+              Sortear / Gerar Confrontos
+            </button>
+          )}
+
+          <button
+            onClick={handleDownloadPdf}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs flex items-center gap-2 border border-slate-700 shadow-sm transition-all"
+          >
+            <Download className="w-4 h-4 text-emerald-400" />
+            Exportar PDF
+          </button>
+        </div>
       </div>
+
+      {onGenerateFixtures && (
+        <FixturesDrawModal
+          isOpen={isFixturesModalOpen}
+          onClose={() => setIsFixturesModalOpen(false)}
+          teams={teams}
+          onGenerateFixtures={onGenerateFixtures}
+        />
+      )}
 
       {/* Phase Selector Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Trophy,
   Save,
@@ -11,7 +11,10 @@ import {
   Archive,
   Download,
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  Upload,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Championship, ChampionshipRule, TiebreakerCriterion } from '../../types';
 
@@ -58,6 +61,21 @@ export const ChampionshipView: React.FC<ChampionshipViewProps> = ({
       : DEFAULT_RULES.tiebreakers,
   }));
   const [saved, setSaved] = useState(false);
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          logoUrl: reader.result as string,
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     if (championship) {
@@ -125,6 +143,64 @@ export const ChampionshipView: React.FC<ChampionshipViewProps> = ({
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Logo / Emblema do Campeonato */}
+              <div className="sm:col-span-2 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700/80 space-y-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>Logo / Emblema Oficial do Campeonato</span>
+                  <span className="text-[10px] text-slate-400 font-normal">Upload de Imagem ou Link URL</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="relative w-16 h-16 rounded-2xl bg-slate-200 dark:bg-slate-700 border-2 border-emerald-500 overflow-hidden flex items-center justify-center shrink-0 shadow-inner group">
+                    {formData.logoUrl ? (
+                      <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                    ) : (
+                      <Trophy className="w-8 h-8 text-emerald-500" />
+                    )}
+                    {userRole === 'ADMIN' && (
+                      <button
+                        type="button"
+                        onClick={() => logoFileInputRef.current?.click()}
+                        className="absolute inset-0 bg-slate-950/60 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                        title="Alterar Logo"
+                      >
+                        <Camera className="w-6 h-6" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-2">
+                    <input
+                      type="text"
+                      placeholder="URL do Logotipo (https://...)"
+                      value={formData.logoUrl || ''}
+                      onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
+                      disabled={userRole !== 'ADMIN'}
+                      className="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+
+                    {userRole === 'ADMIN' && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => logoFileInputRef.current?.click()}
+                          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Escolher Arquivo do Computador
+                        </button>
+                        <input
+                          ref={logoFileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="sm:col-span-2">
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nome do Campeonato</label>
                 <input

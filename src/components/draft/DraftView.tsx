@@ -9,19 +9,31 @@ import {
   CheckCircle2,
   AlertCircle,
   HelpCircle,
-  Sliders
+  Sliders,
+  Calendar,
+  Layers
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Player, Team } from '../../types';
+import { FixturesDrawModal } from './FixturesDrawModal';
 
 interface DraftViewProps {
   players: Player[];
   teams: Team[];
   onExecuteDraft: (data: {
+    championshipId?: string;
     teamIds: string[];
     playerIds: string[];
     mode: 'RANDOM' | 'BALANCED_POSITION' | 'BALANCED_SKILL' | 'GOALKEEPER_FIRST';
   }) => Promise<void>;
+  onGenerateFixtures?: (options: {
+    format: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+    startDate: string;
+    time: string;
+    location: string;
+    daysBetweenRounds: number;
+    clearExisting: boolean;
+  }) => Promise<{ success: boolean; matches: any[] }>;
   userRole: 'ADMIN' | 'OPERATOR' | 'VIEWER';
 }
 
@@ -29,6 +41,7 @@ export const DraftView: React.FC<DraftViewProps> = ({
   players = [],
   teams = [],
   onExecuteDraft,
+  onGenerateFixtures,
   userRole = 'ADMIN',
 }) => {
   const safePlayers = Array.isArray(players) ? players : [];
@@ -38,6 +51,7 @@ export const DraftView: React.FC<DraftViewProps> = ({
   const [draftMode, setDraftMode] = useState<'RANDOM' | 'BALANCED_POSITION' | 'BALANCED_SKILL' | 'GOALKEEPER_FIRST'>('BALANCED_POSITION');
   const [isDrafting, setIsDrafting] = useState(false);
   const [currentDraftingName, setCurrentDraftingName] = useState<string | null>(null);
+  const [isFixturesModalOpen, setIsFixturesModalOpen] = useState(false);
 
   const unassignedPlayers = safePlayers.filter((p) => p && !p.teamId);
 
@@ -103,16 +117,37 @@ export const DraftView: React.FC<DraftViewProps> = ({
         </div>
 
         {userRole === 'ADMIN' && (
-          <button
-            onClick={handleStartDraftAnimation}
-            disabled={isDrafting || selectedTeams.length === 0}
-            className="px-6 py-3 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-2 shadow-xl transition-all uppercase tracking-wider"
-          >
-            <Sparkles className="w-4 h-4" />
-            {isDrafting ? 'Sortear Atletas...' : 'Iniciar Sorteio Geral'}
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            {onGenerateFixtures && (
+              <button
+                onClick={() => setIsFixturesModalOpen(true)}
+                className="px-5 py-3 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-2xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+              >
+                <Calendar className="w-4 h-4 text-emerald-400" />
+                Sortear Confrontos (Tabela)
+              </button>
+            )}
+
+            <button
+              onClick={handleStartDraftAnimation}
+              disabled={isDrafting || selectedTeams.length === 0}
+              className="px-6 py-3 bg-gradient-to-r from-amber-500 to-emerald-600 hover:from-amber-400 hover:to-emerald-500 text-slate-950 font-black rounded-2xl text-xs flex items-center gap-2 shadow-xl transition-all uppercase tracking-wider"
+            >
+              <Sparkles className="w-4 h-4" />
+              {isDrafting ? 'Sortear Atletas...' : 'Iniciar Sorteio de Jogadores'}
+            </button>
+          </div>
         )}
       </div>
+
+      {onGenerateFixtures && (
+        <FixturesDrawModal
+          isOpen={isFixturesModalOpen}
+          onClose={() => setIsFixturesModalOpen(false)}
+          teams={safeTeams}
+          onGenerateFixtures={onGenerateFixtures}
+        />
+      )}
 
       {/* Animation Overlay Container */}
       {isDrafting && (

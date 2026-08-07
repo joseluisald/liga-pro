@@ -13,33 +13,24 @@ import {
   User,
   UserRole
 } from '../src/types';
-import {
-  sampleChampionship,
-  sampleChampionships,
-  sampleTeams,
-  samplePlayers,
-  samplePhases,
-  sampleGroups,
-  sampleMatches,
-  sampleEvents,
-  sampleSuspensions,
-  sampleAuditLogs,
-  sampleNotifications
-} from '../src/mockData';
 import { pool, isMysqlConnected } from './db';
+import fs from 'fs';
+import path from 'path';
+
+const DATA_FILE = path.join(process.cwd(), 'server', 'data.json');
 
 class TournamentStore {
   // In-memory fallback state
-  private championships: Championship[] = [...sampleChampionships];
-  private teams: Team[] = [...sampleTeams];
-  private players: Player[] = [...samplePlayers];
-  private phases: Phase[] = [...samplePhases];
-  private groups: Group[] = [...sampleGroups];
-  private matches: Match[] = [...sampleMatches];
-  private events: MatchEvent[] = [...sampleEvents];
-  private suspensions: Suspension[] = [...sampleSuspensions];
-  private auditLogs: AuditLog[] = [...sampleAuditLogs];
-  private notifications: NotificationItem[] = [...sampleNotifications];
+  private championships: Championship[] = [];
+  private teams: Team[] = [];
+  private players: Player[] = [];
+  private phases: Phase[] = [];
+  private groups: Group[] = [];
+  private matches: Match[] = [];
+  private events: MatchEvent[] = [];
+  private suspensions: Suspension[] = [];
+  private auditLogs: AuditLog[] = [];
+  private notifications: NotificationItem[] = [];
   private users: (User & { password?: string })[] = [
     {
       id: 'usr_admin',
@@ -51,19 +42,74 @@ class TournamentStore {
     }
   ];
 
+  constructor() {
+    this.loadFromFile();
+  }
+
+  private loadFromFile() {
+    try {
+      if (fs.existsSync(DATA_FILE)) {
+        const raw = fs.readFileSync(DATA_FILE, 'utf-8');
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.championships)) this.championships = data.championships;
+        if (Array.isArray(data.teams)) this.teams = data.teams;
+        if (Array.isArray(data.players)) this.players = data.players;
+        if (Array.isArray(data.phases)) this.phases = data.phases;
+        if (Array.isArray(data.groups)) this.groups = data.groups;
+        if (Array.isArray(data.matches)) this.matches = data.matches;
+        if (Array.isArray(data.events)) this.events = data.events;
+        if (Array.isArray(data.suspensions)) this.suspensions = data.suspensions;
+        if (Array.isArray(data.auditLogs)) this.auditLogs = data.auditLogs;
+        if (Array.isArray(data.notifications)) this.notifications = data.notifications;
+        if (Array.isArray(data.users) && data.users.length > 0) this.users = data.users;
+      }
+    } catch (err) {
+      console.error('[Store] Error loading local file store:', err);
+    }
+  }
+
+  private saveToFile() {
+    try {
+      const data = {
+        championships: this.championships,
+        teams: this.teams,
+        players: this.players,
+        phases: this.phases,
+        groups: this.groups,
+        matches: this.matches,
+        events: this.events,
+        suspensions: this.suspensions,
+        auditLogs: this.auditLogs,
+        notifications: this.notifications,
+        users: this.users,
+      };
+      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    } catch (err) {
+      console.error('[Store] Error saving local file store:', err);
+    }
+  }
+
   // --- Championships ---
   async getChampionships(): Promise<Championship[]> {
     if (isMysqlConnected && pool) {
       try {
         const [rows]: any = await pool.query('SELECT * FROM championships ORDER BY createdAt DESC');
-        return rows.map((r: any) => ({
-          ...r,
-          rules: typeof r.rules === 'string' ? JSON.parse(r.rules) : r.rules,
-        }));
+        if (rows.length > 0) {
+          return rows.map((r: any) => ({
+            ...r,
+            rules: typeof r.rules === 'string' ? JSON.parse(r.rules) : r.rules,
+          }));
+        }
       } catch (e) {
         console.error('[MySQL Error] getChampionships:', e);
       }
     }
+
+    if (this.championships.length === 0) {
+      const defaultChamp = await this.createChampionship({ id: 'champ_1', name: 'Meu Campeonato' });
+      return [defaultChamp];
+    }
+
     return this.championships;
   }
 
@@ -78,12 +124,17 @@ class TournamentStore {
             rules: typeof r.rules === 'string' ? JSON.parse(r.rules) : r.rules,
           };
         }
-        return undefined;
       } catch (e) {
         console.error('[MySQL Error] getChampionshipById:', e);
       }
     }
-    return this.championships.find((c) => c.id === id || c.slug === id);
+
+    let found = this.championships.find((c) => c.id === id || c.slug === id);
+    if (!found) {
+      const list = await this.getChampionships();
+      found = list.find((c) => c.id === id || c.slug === id) || list[0];
+    }
+    return found;
   }
 
   async createChampionship(data: Partial<Championship>): Promise<Championship> {
@@ -222,14 +273,18 @@ class TournamentStore {
             team.secondaryColor, team.coachName, team.managerName, team.logoUrl || null, team.captainPlayerId || null
           ]
         );
-        await this.logAudit(team.championshipId, 'TEAM_CREATED', 'Team', team.id, `Cadastrou a equipe ${team.name}`);
-        return team;
       } catch (e) {
         console.error('[MySQL Error] createTeam:', e);
       }
     }
 
-    this.teams.push(team);
+    const tIdx = this.teams.findIndex((t) => t.id === team.id);
+    if (tIdx >= 0) {
+      this.teams[tIdx] = team;
+    } else {
+      this.teams.push(team);
+    }
+    this.saveToFile();
     await this.logAudit(team.championshipId, 'TEAM_CREATED', 'Team', team.id, `Cadastrou a equipe ${team.name}`);
     return team;
   }
@@ -249,16 +304,20 @@ class TournamentStore {
             updated.coachName, updated.managerName, updated.logoUrl || null, updated.captainPlayerId || null, id
           ]
         );
-        await this.logAudit(updated.championshipId, 'TEAM_UPDATED', 'Team', updated.id, `Atualizou a equipe ${updated.name}`);
-        return updated;
       } catch (e) {
         console.error('[MySQL Error] updateTeam:', e);
       }
     }
 
-    Object.assign(team, updates);
-    await this.logAudit(team.championshipId, 'TEAM_UPDATED', 'Team', team.id, `Atualizou a equipe ${team.name}`);
-    return team;
+    const tIdx = this.teams.findIndex((t) => t.id === id);
+    if (tIdx >= 0) {
+      this.teams[tIdx] = updated;
+    } else {
+      this.teams.push(updated);
+    }
+    this.saveToFile();
+    await this.logAudit(updated.championshipId, 'TEAM_UPDATED', 'Team', updated.id, `Atualizou a equipe ${updated.name}`);
+    return updated;
   }
 
   async deleteTeam(id: string): Promise<boolean> {
@@ -269,22 +328,16 @@ class TournamentStore {
       try {
         await pool.query('DELETE FROM teams WHERE id = ?', [id]);
         await pool.query('UPDATE players SET teamId = NULL WHERE teamId = ?', [id]);
-        await this.logAudit(team.championshipId, 'TEAM_DELETED', 'Team', id, `Excluiu a equipe ${team.name}`);
-        return true;
       } catch (e) {
         console.error('[MySQL Error] deleteTeam:', e);
       }
     }
 
-    const index = this.teams.findIndex((t) => t.id === id);
-    if (index !== -1) {
-      const deleted = this.teams[index];
-      this.teams.splice(index, 1);
-      this.players.filter((p) => p.teamId === id).forEach((p) => (p.teamId = null));
-      await this.logAudit(deleted.championshipId, 'TEAM_DELETED', 'Team', id, `Excluiu a equipe ${deleted.name}`);
-      return true;
-    }
-    return false;
+    this.teams = this.teams.filter((t) => t.id !== id);
+    this.players.filter((p) => p.teamId === id).forEach((p) => (p.teamId = null));
+    this.saveToFile();
+    await this.logAudit(team.championshipId, 'TEAM_DELETED', 'Team', id, `Excluiu a equipe ${team.name}`);
+    return true;
   }
 
   // --- Players ---
@@ -373,14 +426,18 @@ class TournamentStore {
             player.skillLevel || 3, player.photoUrl || '', JSON.stringify(player.stats)
           ]
         );
-        await this.logAudit(player.championshipId, 'PLAYER_CREATED', 'Player', player.id, `Cadastrou o jogador ${player.fullName}`);
-        return player;
       } catch (e) {
         console.error('[MySQL Error] createPlayer:', e);
       }
     }
 
-    this.players.push(player);
+    const idx = this.players.findIndex((p) => p.id === player.id);
+    if (idx >= 0) {
+      this.players[idx] = player;
+    } else {
+      this.players.push(player);
+    }
+    this.saveToFile();
     await this.logAudit(player.championshipId, 'PLAYER_CREATED', 'Player', player.id, `Cadastrou o jogador ${player.fullName}`);
     return player;
   }
@@ -403,16 +460,20 @@ class TournamentStore {
             updated.notes || '', updated.skillLevel || 3, updated.photoUrl || '', JSON.stringify(updated.stats), id
           ]
         );
-        await this.logAudit(updated.championshipId, 'PLAYER_UPDATED', 'Player', updated.id, `Atualizou dados do jogador ${updated.fullName}`);
-        return updated;
       } catch (e) {
         console.error('[MySQL Error] updatePlayer:', e);
       }
     }
 
-    Object.assign(player, updates);
-    await this.logAudit(player.championshipId, 'PLAYER_UPDATED', 'Player', player.id, `Atualizou dados do jogador ${player.fullName}`);
-    return player;
+    const pIdx = this.players.findIndex((p) => p.id === id);
+    if (pIdx >= 0) {
+      this.players[pIdx] = updated;
+    } else {
+      this.players.push(updated);
+    }
+    this.saveToFile();
+    await this.logAudit(updated.championshipId, 'PLAYER_UPDATED', 'Player', updated.id, `Atualizou dados do jogador ${updated.fullName}`);
+    return updated;
   }
 
   async deletePlayer(id: string): Promise<boolean> {
@@ -422,21 +483,15 @@ class TournamentStore {
     if (isMysqlConnected && pool) {
       try {
         await pool.query('DELETE FROM players WHERE id = ?', [id]);
-        await this.logAudit(player.championshipId, 'PLAYER_DELETED', 'Player', id, `Removeu o jogador ${player.fullName}`);
-        return true;
       } catch (e) {
         console.error('[MySQL Error] deletePlayer:', e);
       }
     }
 
-    const index = this.players.findIndex((p) => p.id === id);
-    if (index !== -1) {
-      const deleted = this.players[index];
-      this.players.splice(index, 1);
-      await this.logAudit(deleted.championshipId, 'PLAYER_DELETED', 'Player', id, `Removeu o jogador ${deleted.fullName}`);
-      return true;
-    }
-    return false;
+    this.players = this.players.filter((p) => p.id !== id);
+    this.saveToFile();
+    await this.logAudit(player.championshipId, 'PLAYER_DELETED', 'Player', id, `Removeu o jogador ${player.fullName}`);
+    return true;
   }
 
   // --- Draft / Sorteio ---
@@ -577,22 +632,22 @@ class TournamentStore {
 
   async createMatch(matchData: Partial<Match>): Promise<Match> {
     const match: Match = {
-      id: `match_${Date.now()}`,
+      id: `match_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       championshipId: matchData.championshipId || 'champ_1',
       phaseId: matchData.phaseId || 'phase_1',
       groupId: matchData.groupId,
       roundNumber: matchData.roundNumber || 1,
       homeTeamId: matchData.homeTeamId || '',
       awayTeamId: matchData.awayTeamId || '',
-      homeScore: 0,
-      awayScore: 0,
+      homeScore: matchData.homeScore || 0,
+      awayScore: matchData.awayScore || 0,
       date: matchData.date || new Date().toISOString().split('T')[0],
       time: matchData.time || '15:00',
       location: matchData.location || 'Campo Principal',
       referee: matchData.referee || 'Árbitro Principal',
-      status: 'SCHEDULED',
-      currentMinute: 0,
-      halfTime: '1ST',
+      status: matchData.status || 'SCHEDULED',
+      currentMinute: matchData.currentMinute || 0,
+      halfTime: matchData.halfTime || '1ST',
     };
 
     if (isMysqlConnected && pool) {
@@ -607,14 +662,18 @@ class TournamentStore {
             match.halfTime, match.mvpPlayerId || null
           ]
         );
-        await this.logAudit(match.championshipId, 'MATCH_CREATED', 'Match', match.id, `Agendou nova partida entre ${match.homeTeamId} x ${match.awayTeamId}`);
-        return match;
       } catch (e) {
         console.error('[MySQL Error] createMatch:', e);
       }
     }
 
-    this.matches.push(match);
+    const mIdx = this.matches.findIndex((m) => m.id === match.id);
+    if (mIdx >= 0) {
+      this.matches[mIdx] = match;
+    } else {
+      this.matches.push(match);
+    }
+    this.saveToFile();
     await this.logAudit(match.championshipId, 'MATCH_CREATED', 'Match', match.id, `Agendou nova partida entre ${match.homeTeamId} x ${match.awayTeamId}`);
     return match;
   }
@@ -636,26 +695,176 @@ class TournamentStore {
             updated.currentMinute || 0, updated.halfTime || '1ST', updated.mvpPlayerId || null, id
           ]
         );
-
-        if (updated.status === 'FINISHED' || previousStatus === 'FINISHED' || updated.status === 'IN_PROGRESS') {
-          await this.recalculateStatsAndStandings(updated.championshipId);
-        }
-
-        await this.logAudit(updated.championshipId, 'MATCH_UPDATED', 'Match', updated.id, `Atualizou status da partida para ${updated.status} (${updated.homeScore} x ${updated.awayScore})`);
-        return updated;
       } catch (e) {
         console.error('[MySQL Error] updateMatch:', e);
       }
     }
 
-    Object.assign(match, updates);
-
-    if (match.status === 'FINISHED' || previousStatus === 'FINISHED' || match.status === 'IN_PROGRESS') {
-      await this.recalculateStatsAndStandings(match.championshipId);
+    const mIdx = this.matches.findIndex((m) => m.id === id);
+    if (mIdx >= 0) {
+      this.matches[mIdx] = updated;
+    } else {
+      this.matches.push(updated);
     }
 
-    await this.logAudit(match.championshipId, 'MATCH_UPDATED', 'Match', match.id, `Atualizou status da partida para ${match.status} (${match.homeScore} x ${match.awayScore})`);
-    return match;
+    if (updated.status === 'FINISHED' || previousStatus === 'FINISHED' || updated.status === 'IN_PROGRESS') {
+      await this.recalculateStatsAndStandings(updated.championshipId);
+    }
+
+    this.saveToFile();
+    await this.logAudit(updated.championshipId, 'MATCH_UPDATED', 'Match', updated.id, `Atualizou status da partida para ${updated.status} (${updated.homeScore} x ${updated.awayScore})`);
+    return updated;
+  }
+
+  // --- Fixture / Matchup Generator (Sorteio de Confrontos) ---
+  async generateFixtures(championshipId: string, options: {
+    format?: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+    startDate?: string;
+    time?: string;
+    location?: string;
+    daysBetweenRounds?: number;
+    clearExisting?: boolean;
+  }) {
+    const format = options.format || 'ROUND_ROBIN';
+    const startDateStr = options.startDate || new Date().toISOString().split('T')[0];
+    const matchTime = options.time || '15:00';
+    const matchLoc = options.location || 'Campo Principal';
+    const daysBetween = options.daysBetweenRounds || 7;
+
+    const championshipTeams = await this.getTeams(championshipId);
+    if (championshipTeams.length < 2) {
+      throw new Error('É necessário ter no mínimo 2 equipes para sortear e gerar os confrontos.');
+    }
+
+    if (options.clearExisting) {
+      if (isMysqlConnected && pool) {
+        try {
+          await pool.query('DELETE FROM matches WHERE championshipId = ?', [championshipId]);
+        } catch (e) {
+          console.error('[MySQL Error] clearMatches:', e);
+        }
+      }
+      this.matches = this.matches.filter((m) => m.championshipId !== championshipId);
+    }
+
+    // Random shuffle teams for the draw
+    const shuffledTeams = [...championshipTeams].sort(() => Math.random() - 0.5);
+    const newMatches: Match[] = [];
+
+    const baseDate = new Date(startDateStr);
+
+    if (format === 'KNOCKOUT') {
+      // Knockout bracket setup
+      const numTeams = shuffledTeams.length;
+      let dateOffset = 0;
+
+      for (let i = 0; i < numTeams; i += 2) {
+        if (i + 1 < numTeams) {
+          const matchDate = new Date(baseDate);
+          matchDate.setDate(matchDate.getDate() + dateOffset);
+
+          const newM: Match = {
+            id: `match_${Date.now()}_ko_${i}`,
+            championshipId,
+            phaseId: 'phase_1',
+            groupId: undefined,
+            roundNumber: 1,
+            homeTeamId: shuffledTeams[i].id,
+            awayTeamId: shuffledTeams[i + 1].id,
+            homeScore: 0,
+            awayScore: 0,
+            date: matchDate.toISOString().split('T')[0],
+            time: matchTime,
+            location: matchLoc,
+            referee: 'Árbitro Oficial',
+            status: 'SCHEDULED',
+            currentMinute: 0,
+            halfTime: '1ST',
+          };
+          newMatches.push(newM);
+        }
+      }
+    } else {
+      // Round Robin algorithm
+      const teamsList = [...shuffledTeams];
+      let byeTeam: Team | null = null;
+      if (teamsList.length % 2 !== 0) {
+        byeTeam = { id: 'BYE', championshipId, name: 'Folga', shortName: 'BYE', primaryColor: '#000', secondaryColor: '#fff' };
+        teamsList.push(byeTeam);
+      }
+
+      const numTeams = teamsList.length;
+      const rounds = numTeams - 1;
+      const matchesPerRound = numTeams / 2;
+
+      let dateOffset = 0;
+
+      const scheduleRound = (roundIndex: number, isReturn: boolean = false) => {
+        const roundDate = new Date(baseDate);
+        roundDate.setDate(roundDate.getDate() + dateOffset);
+
+        for (let m = 0; m < matchesPerRound; m++) {
+          const home = teamsList[m];
+          const away = teamsList[numTeams - 1 - m];
+
+          if (home.id !== 'BYE' && away.id !== 'BYE') {
+            const homeTeamId = isReturn ? away.id : home.id;
+            const awayTeamId = isReturn ? home.id : away.id;
+
+            const newM: Match = {
+              id: `match_${Date.now()}_r${roundIndex}_m${m}${isReturn ? '_ret' : ''}`,
+              championshipId,
+              phaseId: 'phase_1',
+              groupId: undefined,
+              roundNumber: roundIndex,
+              homeTeamId,
+              awayTeamId,
+              homeScore: 0,
+              awayScore: 0,
+              date: roundDate.toISOString().split('T')[0],
+              time: matchTime,
+              location: matchLoc,
+              referee: 'Árbitro Oficial',
+              status: 'SCHEDULED',
+              currentMinute: 0,
+              halfTime: '1ST',
+            };
+            newMatches.push(newM);
+          }
+        }
+        dateOffset += daysBetween;
+
+        // Rotate array except first element
+        teamsList.splice(1, 0, teamsList.pop()!);
+      };
+
+      // Generate Turno
+      for (let r = 1; r <= rounds; r++) {
+        scheduleRound(r, false);
+      }
+
+      // If Double Round Robin, generate Returno
+      if (format === 'DOUBLE_ROUND_ROBIN') {
+        for (let r = 1; r <= rounds; r++) {
+          scheduleRound(rounds + r, true);
+        }
+      }
+    }
+
+    // Save generated matches
+    for (const m of newMatches) {
+      await this.createMatch(m);
+    }
+
+    await this.logAudit(
+      championshipId,
+      'FIXTURES_GENERATED',
+      'Matches',
+      'fixtures',
+      `Sorteou e gerou ${newMatches.length} confrontos para o campeonato (Formato: ${format})`
+    );
+
+    return newMatches;
   }
 
   // --- Match Events ---

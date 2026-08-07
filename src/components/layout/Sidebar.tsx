@@ -75,9 +75,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const visibleItems = navItems.filter((item) => userRole === 'ADMIN' || item.id !== 'financial');
 
   return (
-    <aside className="w-56 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col border-r border-slate-800 transition-all hidden md:flex">
+    <aside className="w-56 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col border-r border-slate-800 transition-all hidden md:flex h-full">
       {/* High Density Brand Header */}
-      <div className="p-4 border-b border-slate-800 space-y-3">
+      <div className="p-4 border-b border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center shrink-0 shadow-sm">
             <Trophy className="w-4 h-4 text-white stroke-[2.5]" />
@@ -87,22 +87,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="text-[10px] text-slate-400 font-medium mt-0.5">Gerenciador SaaS</span>
           </div>
         </div>
-
-        {onOpenChampionshipsHub && (
-          <button
-            onClick={onOpenChampionshipsHub}
-            className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700/80 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer group"
-            title="Ver Todos / Cadastrar Novo Campeonato"
-          >
-            <span className="flex items-center gap-2">
-              <Trophy className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Meus Campeonatos</span>
-            </span>
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-black group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-              + / ⇄
-            </span>
-          </button>
-        )}
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
@@ -138,19 +122,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
         })}
       </nav>
-
-      {/* High Density User Footer */}
-      <div className="p-4 mt-auto border-t border-slate-800 bg-slate-900/90">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white border border-slate-600">
-            AM
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-white truncate">Admin Master</p>
-            <p className="text-[10px] text-slate-500 truncate">Gerenciador SaaS</p>
-          </div>
-        </div>
-      </div>
     </aside>
   );
 };

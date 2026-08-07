@@ -103,6 +103,15 @@ async function startServer() {
     res.json(await store.getMatches(req.params.id));
   });
 
+  apiRouter.post('/championships/:id/generate-fixtures', async (req, res) => {
+    try {
+      const matches = await store.generateFixtures(req.params.id, req.body);
+      res.json({ success: true, matches });
+    } catch (err: any) {
+      res.status(400).json({ error: err.message || 'Erro ao gerar confrontos' });
+    }
+  });
+
   apiRouter.get('/matches/:id', async (req, res) => {
     const match = await store.getMatchById(req.params.id);
     if (!match) return res.status(404).json({ error: 'Partida não encontrada' });
