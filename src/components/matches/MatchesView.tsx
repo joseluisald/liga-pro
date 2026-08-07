@@ -24,13 +24,18 @@ interface MatchesViewProps {
   onCreateMatch: (m: Partial<Match>) => void;
   onUpdateMatch: (id: string, m: Partial<Match>) => void;
   onOpenLiveOperator: (matchId: string) => void;
+  categories?: any[];
   onGenerateFixtures?: (options: {
-    format: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+    format: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT' | 'GROUPS';
+    numGroups?: number;
     startDate: string;
     time: string;
     location: string;
     daysBetweenRounds: number;
     clearExisting: boolean;
+    matchDurationMinutes?: number;
+    matchIntervalMinutes?: number;
+    categoryDailyGames?: Record<string, number>;
   }) => Promise<{ success: boolean; matches: any[] }>;
   userRole: 'ADMIN' | 'OPERATOR' | 'VIEWER';
   autoOpenCreateModal?: boolean;
@@ -41,6 +46,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
   matches = [],
   teams = [],
   phases = [],
+  categories = [],
   onCreateMatch,
   onUpdateMatch,
   onOpenLiveOperator,
@@ -149,6 +155,7 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
           isOpen={isFixturesModalOpen}
           onClose={() => setIsFixturesModalOpen(false)}
           teams={teams}
+          categories={categories}
           onGenerateFixtures={onGenerateFixtures}
         />
       )}

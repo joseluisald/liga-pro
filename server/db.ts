@@ -103,6 +103,7 @@ async function createTables() {
     `CREATE TABLE IF NOT EXISTS teams (
       id VARCHAR(255) PRIMARY KEY,
       championshipId VARCHAR(255),
+      categoryId VARCHAR(255),
       name VARCHAR(255) NOT NULL,
       shortName VARCHAR(50),
       primaryColor VARCHAR(50),
@@ -116,6 +117,7 @@ async function createTables() {
     `CREATE TABLE IF NOT EXISTS players (
       id VARCHAR(255) PRIMARY KEY,
       championshipId VARCHAR(255),
+      categoryId VARCHAR(255),
       teamId VARCHAR(255),
       fullName VARCHAR(255) NOT NULL,
       displayName VARCHAR(255),
@@ -140,6 +142,7 @@ async function createTables() {
     `CREATE TABLE IF NOT EXISTS phases (
       id VARCHAR(255) PRIMARY KEY,
       championshipId VARCHAR(255),
+      categoryId VARCHAR(255),
       name VARCHAR(255),
       type VARCHAR(50),
       \`order\` INT,
@@ -150,6 +153,7 @@ async function createTables() {
     `CREATE TABLE IF NOT EXISTS \`groups\` (
       id VARCHAR(255) PRIMARY KEY,
       phaseId VARCHAR(255),
+      categoryId VARCHAR(255),
       name VARCHAR(255),
       teamIds JSON
     );`,
@@ -157,6 +161,7 @@ async function createTables() {
     `CREATE TABLE IF NOT EXISTS matches (
       id VARCHAR(255) PRIMARY KEY,
       championshipId VARCHAR(255),
+      categoryId VARCHAR(255),
       phaseId VARCHAR(255),
       groupId VARCHAR(255),
       roundNumber INT,

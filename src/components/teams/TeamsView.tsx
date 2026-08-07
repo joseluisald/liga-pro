@@ -14,12 +14,13 @@ import {
   Camera,
   Upload
 } from 'lucide-react';
-import { Team, Player, StandingRow } from '../../types';
+import { Team, Player, StandingRow, Category, DEFAULT_CATEGORIES } from '../../types';
 
 interface TeamsViewProps {
   teams: Team[];
   players: Player[];
   standings: StandingRow[];
+  categories?: Category[];
   onCreateTeam: (t: Partial<Team>) => void;
   onUpdateTeam: (id: string, t: Partial<Team>) => void;
   onDeleteTeam: (id: string) => void;
@@ -31,6 +32,7 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
   teams = [],
   players = [],
   standings = [],
+  categories = DEFAULT_CATEGORIES,
   onCreateTeam,
   onUpdateTeam,
   onDeleteTeam,
@@ -337,6 +339,21 @@ export const TeamsView: React.FC<TeamsViewProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Categoria do Time</label>
+                <select
+                  value={editingTeam.categoryId || 'principal'}
+                  onChange={(e) => setEditingTeam({ ...editingTeam, categoryId: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold"
+                >
+                  {(categories.length > 0 ? categories : DEFAULT_CATEGORIES).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

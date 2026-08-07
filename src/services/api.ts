@@ -193,12 +193,16 @@ export async function createMatch(match: Partial<Match>): Promise<Match> {
 }
 
 export async function generateFixtures(champId: string, options: {
-  format?: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+  format?: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT' | 'GROUPS';
+  numGroups?: number;
   startDate?: string;
   time?: string;
   location?: string;
   daysBetweenRounds?: number;
   clearExisting?: boolean;
+  matchDurationMinutes?: number;
+  matchIntervalMinutes?: number;
+  categoryDailyGames?: Record<string, number>;
 }): Promise<{ success: boolean; matches: Match[] }> {
   const res = await fetch(`${API_BASE}/championships/${champId}/generate-fixtures`, {
     method: 'POST',

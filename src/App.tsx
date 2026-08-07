@@ -15,6 +15,7 @@ import { FinancialView } from './components/financial/FinancialView';
 import { PublicView } from './components/public/PublicView';
 import { ChampionshipsHubModal } from './components/championship/ChampionshipsHubModal';
 import { AuthView } from './components/auth/AuthView';
+import { CategorySelectorBar } from './components/categories/CategorySelectorBar';
 
 import {
   Championship,
@@ -27,7 +28,9 @@ import {
   StandingRow,
   Suspension,
   FinancialStatus,
-  User
+  User,
+  Category,
+  DEFAULT_CATEGORIES
 } from './types';
 import { api } from './services/api';
 
@@ -96,6 +99,9 @@ export function App() {
   const [isChampHubOpen, setIsChampHubOpen] = useState<boolean>(false);
 
   const [championship, setChampionship] = useState<Championship | null>(null);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('ALL');
+
   const [teams, setTeams] = useState<Team[]>([]);
   const [players, setPlayers] = useState<Player[]>([]);
   const [phases, setPhases] = useState<Phase[]>([]);
@@ -104,6 +110,38 @@ export function App() {
   const [standings, setStandings] = useState<StandingRow[]>([]);
   const [suspensions, setSuspensions] = useState<Suspension[]>([]);
   const [events, setEvents] = useState<MatchEvent[]>([]);
+
+  const handleCreateCategory = (catData: Partial<Category>) => {
+    if (!catData.id || !catData.name) return;
+    const newCat: Category = {
+      id: catData.id,
+      name: catData.name,
+      description: catData.description || '',
+    };
+    setCategories((prev) => {
+      if (prev.some((c) => c.id === newCat.id)) return prev;
+      return [...prev, newCat];
+    });
+  };
+
+  const filteredTeams = teams.filter(
+    (t) => selectedCategoryId === 'ALL' || (t.categoryId || 'principal') === selectedCategoryId
+  );
+  const filteredPlayers = players.filter(
+    (p) => selectedCategoryId === 'ALL' || (p.categoryId || 'principal') === selectedCategoryId
+  );
+  const filteredMatches = matches.filter(
+    (m) => selectedCategoryId === 'ALL' || (m.categoryId || 'principal') === selectedCategoryId
+  );
+  const filteredStandings = standings.filter(
+    (s) => selectedCategoryId === 'ALL' || (s.team?.categoryId || 'principal') === selectedCategoryId
+  );
+  const filteredPhases = phases.filter(
+    (p) => selectedCategoryId === 'ALL' || (p.categoryId || 'principal') === selectedCategoryId
+  );
+  const filteredGroups = groups.filter(
+    (g) => selectedCategoryId === 'ALL' || (g.categoryId || 'principal') === selectedCategoryId
+  );
 
   const [loading, setLoading] = useState(true);
 
@@ -390,16 +428,25 @@ export function App() {
           onOpenChampionshipsHub={() => setIsChampHubOpen(true)}
         />
 
+        {/* Category Selector Bar */}
+        <CategorySelectorBar
+          categories={categories}
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={setSelectedCategoryId}
+          onCreateCategory={handleCreateCategory}
+          userRole={userRole}
+        />
+
         {/* Main Content Workspace */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50 dark:bg-slate-950">
           <div className="max-w-7xl mx-auto space-y-6">
             {activeModule === 'dashboard' && (
               <DashboardView
                 championship={championship}
-                teams={teams}
-                players={players}
-                matches={matches}
-                standings={standings}
+                teams={filteredTeams}
+                players={filteredPlayers}
+                matches={filteredMatches}
+                standings={filteredStandings}
                 onOpenLiveOperator={handleOpenLiveOperator}
               />
             )}
@@ -414,8 +461,9 @@ export function App() {
 
             {activeModule === 'players' && (
               <PlayersView
-                players={players}
+                players={filteredPlayers}
                 teams={teams}
+                categories={categories}
                 onCreatePlayer={handleCreatePlayer}
                 onUpdatePlayer={handleUpdatePlayer}
                 onDeletePlayer={handleDeletePlayer}
@@ -425,9 +473,10 @@ export function App() {
 
             {activeModule === 'teams' && (
               <TeamsView
-                teams={teams}
+                teams={filteredTeams}
                 players={players}
                 standings={standings}
+                categories={categories}
                 onCreateTeam={handleCreateTeam}
                 onUpdateTeam={handleUpdateTeam}
                 onDeleteTeam={handleDeleteTeam}
@@ -438,8 +487,8 @@ export function App() {
 
             {activeModule === 'draft' && (
               <DraftView
-                players={players}
-                teams={teams}
+                players={filteredPlayers}
+                teams={filteredTeams}
                 onExecuteDraft={handleExecuteDraft}
                 onGenerateFixtures={handleGenerateFixtures}
                 userRole={userRole}
@@ -449,11 +498,11 @@ export function App() {
             {activeModule === 'phases_standings' && (
               <PhasesAndStandingsView
                 championship={championship}
-                phases={phases}
-                groups={groups}
-                standings={standings}
-                matches={matches}
-                teams={teams}
+                phases={filteredPhases}
+                groups={filteredGroups}
+                standings={filteredStandings}
+                matches={filteredMatches}
+                teams={filteredTeams}
                 onGenerateFixtures={handleGenerateFixtures}
                 userRole={userRole}
               />
@@ -461,9 +510,10 @@ export function App() {
 
             {activeModule === 'matches' && (
               <MatchesView
-                matches={matches}
+                matches={filteredMatches}
                 teams={teams}
                 phases={phases}
+                categories={categories}
                 onCreateMatch={handleCreateMatch}
                 onUpdateMatch={handleUpdateMatch}
                 onOpenLiveOperator={handleOpenLiveOperator}

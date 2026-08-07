@@ -8,6 +8,18 @@ export interface User {
   avatarUrl?: string;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'principal', name: 'Principal', description: 'Categoria Principal Livre' },
+  { id: 'veteranos', name: 'Veteranos', description: 'Categoria Veteranos (35+)' },
+  { id: 'feminino', name: 'Feminino', description: 'Categoria Feminina Livre' },
+];
+
 export type ChampionshipStatus = 
   | 'PLANNING' 
   | 'REGISTRATION_OPEN' 
@@ -58,6 +70,7 @@ export interface Championship {
   rulesPdfUrl?: string;
   status: ChampionshipStatus;
   rules: ChampionshipRule;
+  categories?: Category[];
   archived?: boolean;
   createdAt: string;
 }
@@ -91,6 +104,7 @@ export interface PlayerStats {
 export interface Player {
   id: string;
   championshipId: string;
+  categoryId?: string;
   teamId?: string | null;
   fullName: string;
   displayName: string;
@@ -115,6 +129,7 @@ export interface Player {
 export interface Team {
   id: string;
   championshipId: string;
+  categoryId?: string;
   name: string;
   shortName: string;
   logoUrl?: string;
@@ -131,6 +146,7 @@ export type PhaseType = 'GROUPS' | 'SINGLE_ROUND' | 'ROUND_ROBIN' | 'KNOCKOUT';
 export interface Phase {
   id: string;
   championshipId: string;
+  categoryId?: string;
   name: string;
   type: PhaseType;
   order: number;
@@ -145,6 +161,7 @@ export interface Phase {
 export interface Group {
   id: string;
   phaseId: string;
+  categoryId?: string;
   name: string;
   teamIds: string[];
 }
@@ -161,6 +178,7 @@ export type MatchStatus = 'SCHEDULED' | 'IN_PROGRESS' | 'FINISHED' | 'POSTPONED'
 export interface Match {
   id: string;
   championshipId: string;
+  categoryId?: string;
   phaseId: string;
   groupId?: string;
   roundId?: string;

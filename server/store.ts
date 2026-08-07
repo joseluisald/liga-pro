@@ -243,6 +243,7 @@ class TournamentStore {
     const team: Team = {
       id: `team_${Date.now()}`,
       championshipId: teamData.championshipId || '',
+      categoryId: teamData.categoryId || 'principal',
       name: teamData.name || 'Novo Time',
       shortName: teamData.shortName || 'NTV',
       primaryColor: teamData.primaryColor || '#2563eb',
@@ -256,10 +257,10 @@ class TournamentStore {
     if (isMysqlConnected && pool) {
       try {
         await pool.query(
-          `INSERT INTO teams (id, championshipId, name, shortName, primaryColor, secondaryColor, coachName, managerName, logoUrl, captainPlayerId)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO teams (id, championshipId, categoryId, name, shortName, primaryColor, secondaryColor, coachName, managerName, logoUrl, captainPlayerId)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
-            team.id, team.championshipId, team.name, team.shortName, team.primaryColor,
+            team.id, team.championshipId, team.categoryId, team.name, team.shortName, team.primaryColor,
             team.secondaryColor, team.coachName, team.managerName, team.logoUrl || null, team.captainPlayerId || null
           ]
         );
@@ -368,9 +369,17 @@ class TournamentStore {
   }
 
   async createPlayer(playerData: Partial<Player>): Promise<Player> {
+    // Infer category from team if team is selected and player category not explicitly set
+    let categoryId = playerData.categoryId;
+    if (!categoryId && playerData.teamId) {
+      const team = this.teams.find((t) => t.id === playerData.teamId);
+      if (team?.categoryId) categoryId = team.categoryId;
+    }
+
     const player: Player = {
       id: `play_${Date.now()}`,
       championshipId: playerData.championshipId || '',
+      categoryId: categoryId || 'principal',
       teamId: playerData.teamId || null,
       fullName: playerData.fullName || 'Novo Jogador',
       displayName: playerData.displayName || playerData.fullName || 'Jogador',
@@ -621,9 +630,16 @@ class TournamentStore {
   }
 
   async createMatch(matchData: Partial<Match>): Promise<Match> {
+    let categoryId = matchData.categoryId;
+    if (!categoryId && matchData.homeTeamId) {
+      const homeTeam = this.teams.find((t) => t.id === matchData.homeTeamId);
+      if (homeTeam?.categoryId) categoryId = homeTeam.categoryId;
+    }
+
     const match: Match = {
       id: `match_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
       championshipId: matchData.championshipId || '',
+      categoryId: categoryId || 'principal',
       phaseId: matchData.phaseId || 'phase_1',
       groupId: matchData.groupId,
       roundNumber: matchData.roundNumber || 1,
@@ -708,18 +724,26 @@ class TournamentStore {
 
   // --- Fixture / Matchup Generator (Sorteio de Confrontos) ---
   async generateFixtures(championshipId: string, options: {
-    format?: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT';
+    format?: 'ROUND_ROBIN' | 'DOUBLE_ROUND_ROBIN' | 'KNOCKOUT' | 'GROUPS';
+    numGroups?: number;
     startDate?: string;
     time?: string;
     location?: string;
     daysBetweenRounds?: number;
     clearExisting?: boolean;
+    matchDurationMinutes?: number;
+    matchIntervalMinutes?: number;
+    categoryDailyGames?: Record<string, number>;
   }) {
     const format = options.format || 'ROUND_ROBIN';
+    const numGroups = Math.max(2, options.numGroups || 2);
     const startDateStr = options.startDate || new Date().toISOString().split('T')[0];
-    const matchTime = options.time || '15:00';
+    const startTimeStr = options.time || '14:00';
     const matchLoc = options.location || 'Campo Principal';
     const daysBetween = options.daysBetweenRounds || 7;
+    const matchDuration = options.matchDurationMinutes || 50;
+    const matchInterval = options.matchIntervalMinutes || 10;
+    const slotDurationMs = (matchDuration + matchInterval) * 60 * 1000;
 
     const championshipTeams = await this.getTeams(championshipId);
     if (championshipTeams.length < 2) {
@@ -730,119 +754,230 @@ class TournamentStore {
       if (isMysqlConnected && pool) {
         try {
           await pool.query('DELETE FROM matches WHERE championshipId = ?', [championshipId]);
+          await pool.query('DELETE FROM `groups` WHERE phaseId IN (SELECT id FROM phases WHERE championshipId = ?)', [championshipId]);
         } catch (e) {
-          console.error('[MySQL Error] clearMatches:', e);
+          console.error('[MySQL Error] clearMatches/groups:', e);
         }
       }
       this.matches = this.matches.filter((m) => m.championshipId !== championshipId);
+      this.groups = [];
     }
 
-    // Random shuffle teams for the draw
-    const shuffledTeams = [...championshipTeams].sort(() => Math.random() - 0.5);
-    const newMatches: Match[] = [];
-
-    const baseDate = new Date(startDateStr);
-
-    if (format === 'KNOCKOUT') {
-      // Knockout bracket setup
-      const numTeams = shuffledTeams.length;
-      let dateOffset = 0;
-
-      for (let i = 0; i < numTeams; i += 2) {
-        if (i + 1 < numTeams) {
-          const matchDate = new Date(baseDate);
-          matchDate.setDate(matchDate.getDate() + dateOffset);
-
-          const newM: Match = {
-            id: `match_${Date.now()}_ko_${i}`,
-            championshipId,
-            phaseId: 'phase_1',
-            groupId: undefined,
-            roundNumber: 1,
-            homeTeamId: shuffledTeams[i].id,
-            awayTeamId: shuffledTeams[i + 1].id,
-            homeScore: 0,
-            awayScore: 0,
-            date: matchDate.toISOString().split('T')[0],
-            time: matchTime,
-            location: matchLoc,
-            referee: 'Árbitro Oficial',
-            status: 'SCHEDULED',
-            currentMinute: 0,
-            halfTime: '1ST',
-          };
-          newMatches.push(newM);
-        }
+    // Group teams by category
+    const categoryTeamsMap: Record<string, Team[]> = {};
+    for (const team of championshipTeams) {
+      const catId = team.categoryId || 'principal';
+      if (!categoryTeamsMap[catId]) {
+        categoryTeamsMap[catId] = [];
       }
-    } else {
-      // Round Robin algorithm
-      const teamsList = [...shuffledTeams];
-      let byeTeam: Team | null = null;
+      categoryTeamsMap[catId].push(team);
+    }
+
+    // Helper function to build matches for a group of teams (Round Robin)
+    const buildRoundRobinMatches = (teams: Team[], catId: string, phaseId: string, groupId?: string, isDouble: boolean = false) => {
+      const shuffled = [...teams].sort(() => Math.random() - 0.5);
+      const teamsList = [...shuffled];
       if (teamsList.length % 2 !== 0) {
-        byeTeam = { id: 'BYE', championshipId, name: 'Folga', shortName: 'BYE', primaryColor: '#000', secondaryColor: '#fff' };
-        teamsList.push(byeTeam);
+        teamsList.push({ id: 'BYE', championshipId, name: 'Folga', shortName: 'BYE', primaryColor: '#000', secondaryColor: '#fff' });
       }
 
-      const numTeams = teamsList.length;
-      const rounds = numTeams - 1;
-      const matchesPerRound = numTeams / 2;
+      const numT = teamsList.length;
+      const rounds = numT - 1;
+      const matchesPerRound = numT / 2;
+      const matches: Partial<Match>[] = [];
 
-      let dateOffset = 0;
-
-      const scheduleRound = (roundIndex: number, isReturn: boolean = false) => {
-        const roundDate = new Date(baseDate);
-        roundDate.setDate(roundDate.getDate() + dateOffset);
-
+      const scheduleRound = (roundIdx: number, isReturn: boolean) => {
         for (let m = 0; m < matchesPerRound; m++) {
           const home = teamsList[m];
-          const away = teamsList[numTeams - 1 - m];
+          const away = teamsList[numT - 1 - m];
 
           if (home.id !== 'BYE' && away.id !== 'BYE') {
-            const homeTeamId = isReturn ? away.id : home.id;
-            const awayTeamId = isReturn ? home.id : away.id;
-
-            const newM: Match = {
-              id: `match_${Date.now()}_r${roundIndex}_m${m}${isReturn ? '_ret' : ''}`,
+            matches.push({
+              id: `match_${Date.now()}_${catId}_r${roundIdx}_m${m}${isReturn ? '_ret' : ''}_${Math.floor(Math.random()*1000)}`,
               championshipId,
-              phaseId: 'phase_1',
-              groupId: undefined,
-              roundNumber: roundIndex,
-              homeTeamId,
-              awayTeamId,
+              categoryId: catId,
+              phaseId,
+              groupId,
+              roundNumber: roundIdx,
+              homeTeamId: isReturn ? away.id : home.id,
+              awayTeamId: isReturn ? home.id : away.id,
               homeScore: 0,
               awayScore: 0,
-              date: roundDate.toISOString().split('T')[0],
-              time: matchTime,
               location: matchLoc,
               referee: 'Árbitro Oficial',
               status: 'SCHEDULED',
               currentMinute: 0,
               halfTime: '1ST',
-            };
-            newMatches.push(newM);
+            });
           }
         }
-        dateOffset += daysBetween;
-
-        // Rotate array except first element
         teamsList.splice(1, 0, teamsList.pop()!);
       };
 
-      // Generate Turno
       for (let r = 1; r <= rounds; r++) {
         scheduleRound(r, false);
       }
-
-      // If Double Round Robin, generate Returno
-      if (format === 'DOUBLE_ROUND_ROBIN') {
+      if (isDouble) {
         for (let r = 1; r <= rounds; r++) {
           scheduleRound(rounds + r, true);
         }
       }
+      return matches;
+    };
+
+    // Store unscheduled raw matches per category
+    const categoryUnscheduledMatches: Record<string, Partial<Match>[]> = {};
+
+    for (const [catId, teams] of Object.entries(categoryTeamsMap)) {
+      if (teams.length < 2) continue;
+
+      if (format === 'GROUPS') {
+        // Fase de Grupos / Por Chaves
+        const actualNumGroups = Math.min(numGroups, Math.floor(teams.length / 2) || 1);
+        const shuffled = [...teams].sort(() => Math.random() - 0.5);
+        const groupLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+        const groupMatches: Partial<Match>[] = [];
+
+        for (let g = 0; g < actualNumGroups; g++) {
+          const groupTeams = shuffled.filter((_, idx) => idx % actualNumGroups === g);
+          const groupLetter = groupLetters[g] || `${g + 1}`;
+          const groupName = `Chave ${groupLetter}`;
+          const grpId = `group_${catId}_${g + 1}_${Date.now()}`;
+
+          // Create group entry
+          const newGrp: Group = {
+            id: grpId,
+            phaseId: 'phase_1',
+            categoryId: catId,
+            name: groupName,
+            teamIds: groupTeams.map((t) => t.id),
+          };
+          this.groups.push(newGrp);
+
+          if (isMysqlConnected && pool) {
+            try {
+              await pool.query('INSERT INTO `groups` (id, phaseId, categoryId, name, teamIds) VALUES (?, ?, ?, ?, ?)', [
+                newGrp.id, newGrp.phaseId, newGrp.categoryId, newGrp.name, JSON.stringify(newGrp.teamIds)
+              ]);
+            } catch (e) {
+              console.error('[MySQL Error] createGroup:', e);
+            }
+          }
+
+          const mList = buildRoundRobinMatches(groupTeams, catId, 'phase_1', grpId, false);
+          groupMatches.push(...mList);
+        }
+        categoryUnscheduledMatches[catId] = groupMatches;
+      } else if (format === 'KNOCKOUT') {
+        // Mata-mata
+        const shuffled = [...teams].sort(() => Math.random() - 0.5);
+        const koMatches: Partial<Match>[] = [];
+        for (let i = 0; i < shuffled.length; i += 2) {
+          if (i + 1 < shuffled.length) {
+            koMatches.push({
+              id: `match_${Date.now()}_ko_${catId}_${i}`,
+              championshipId,
+              categoryId: catId,
+              phaseId: 'phase_1',
+              roundNumber: 1,
+              homeTeamId: shuffled[i].id,
+              awayTeamId: shuffled[i + 1].id,
+              homeScore: 0,
+              awayScore: 0,
+              location: matchLoc,
+              referee: 'Árbitro Oficial',
+              status: 'SCHEDULED',
+              currentMinute: 0,
+              halfTime: '1ST',
+            });
+          }
+        }
+        categoryUnscheduledMatches[catId] = koMatches;
+      } else {
+        // Turno único ou Turno e Returno
+        const isDouble = format === 'DOUBLE_ROUND_ROBIN';
+        categoryUnscheduledMatches[catId] = buildRoundRobinMatches(teams, catId, 'phase_1', undefined, isDouble);
+      }
+    }
+
+    // Now distribute and schedule matches by day and time per category
+    const dailyGamesConfig = options.categoryDailyGames || {};
+    const baseDate = new Date(startDateStr);
+
+    const createdMatches: Match[] = [];
+
+    // Helper to parse HH:mm to Date object
+    const [startHour, startMin] = startTimeStr.split(':').map((v) => parseInt(v, 10) || 0);
+
+    let matchDayIndex = 0;
+    let hasRemainingMatches = true;
+
+    // Clone match queues
+    const matchQueues: Record<string, Partial<Match>[]> = {};
+    for (const catId of Object.keys(categoryUnscheduledMatches)) {
+      matchQueues[catId] = [...categoryUnscheduledMatches[catId]];
+    }
+
+    while (hasRemainingMatches) {
+      hasRemainingMatches = false;
+
+      // Current date for this matchday
+      const currentDate = new Date(baseDate);
+      currentDate.setDate(currentDate.getDate() + matchDayIndex * daysBetween);
+      const dateStr = currentDate.toISOString().split('T')[0];
+
+      // Time pointer for the day
+      let currentSlotTime = new Date(currentDate);
+      currentSlotTime.setHours(startHour, startMin, 0, 0);
+
+      for (const [catId, queue] of Object.entries(matchQueues)) {
+        if (queue.length === 0) continue;
+
+        // How many games for this category on each matchday?
+        const gamesPerDay = Math.max(1, dailyGamesConfig[catId] || 3);
+
+        const countToSchedule = Math.min(gamesPerDay, queue.length);
+        for (let i = 0; i < countToSchedule; i++) {
+          const matchData = queue.shift()!;
+          const timeStr = `${String(currentSlotTime.getHours()).padStart(2, '0')}:${String(currentSlotTime.getMinutes()).padStart(2, '0')}`;
+
+          const fullMatch: Match = {
+            id: matchData.id || `match_${Date.now()}_${Math.floor(Math.random()*1000)}`,
+            championshipId,
+            categoryId: catId,
+            phaseId: matchData.phaseId || 'phase_1',
+            groupId: matchData.groupId,
+            roundNumber: matchData.roundNumber || (matchDayIndex + 1),
+            homeTeamId: matchData.homeTeamId || '',
+            awayTeamId: matchData.awayTeamId || '',
+            homeScore: 0,
+            awayScore: 0,
+            date: dateStr,
+            time: timeStr,
+            location: matchData.location || matchLoc,
+            referee: 'Árbitro Oficial',
+            status: 'SCHEDULED',
+            currentMinute: 0,
+            halfTime: '1ST',
+          };
+
+          createdMatches.push(fullMatch);
+
+          // Advance slot time
+          currentSlotTime = new Date(currentSlotTime.getTime() + slotDurationMs);
+        }
+
+        if (queue.length > 0) {
+          hasRemainingMatches = true;
+        }
+      }
+
+      matchDayIndex++;
+      if (matchDayIndex > 100) break; // Safety cap
     }
 
     // Save generated matches
-    for (const m of newMatches) {
+    for (const m of createdMatches) {
       await this.createMatch(m);
     }
 
@@ -851,10 +986,10 @@ class TournamentStore {
       'FIXTURES_GENERATED',
       'Matches',
       'fixtures',
-      `Sorteou e gerou ${newMatches.length} confrontos para o campeonato (Formato: ${format})`
+      `Sorteou e gerou ${createdMatches.length} confrontos no formato ${format} para o campeonato.`
     );
 
-    return newMatches;
+    return createdMatches;
   }
 
   // --- Match Events ---
