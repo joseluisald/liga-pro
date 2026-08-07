@@ -296,8 +296,34 @@ export async function fetchNotifications(): Promise<NotificationItem[]> {
 
 export const api = {
   getChampionshipData: async (id: string) => {
+    if (!id) {
+      return {
+        championship: null,
+        teams: [],
+        players: [],
+        phases: [],
+        groups: [],
+        matches: [],
+        standings: [],
+        suspensions: [],
+        events: []
+      };
+    }
     try {
       const championship = await fetchChampionship(id);
+      if (!championship || (championship as any).error) {
+        return {
+          championship: null,
+          teams: [],
+          players: [],
+          phases: [],
+          groups: [],
+          matches: [],
+          standings: [],
+          suspensions: [],
+          events: []
+        };
+      }
       const teams = await fetchTeams(id);
       const players = await fetchPlayers(id);
       const matches = await fetchMatches(id);
@@ -328,18 +354,7 @@ export const api = {
     } catch (err) {
       console.error('Failed to load championship data:', err);
       return {
-        championship: {
-          id: id,
-          name: 'Campeonato',
-          season: new Date().getFullYear().toString(),
-          startDate: new Date().toISOString().split('T')[0],
-          endDate: new Date().toISOString().split('T')[0],
-          city: '',
-          state: '',
-          status: 'PLANNING',
-          maxTeams: 16,
-          maxPlayersPerTeam: 20,
-        },
+        championship: null,
         teams: [],
         players: [],
         phases: [],

@@ -94,26 +94,20 @@ class TournamentStore {
     if (isMysqlConnected && pool) {
       try {
         const [rows]: any = await pool.query('SELECT * FROM championships ORDER BY createdAt DESC');
-        if (rows.length > 0) {
-          return rows.map((r: any) => ({
-            ...r,
-            rules: typeof r.rules === 'string' ? JSON.parse(r.rules) : r.rules,
-          }));
-        }
+        return rows.map((r: any) => ({
+          ...r,
+          rules: typeof r.rules === 'string' ? JSON.parse(r.rules) : r.rules,
+        }));
       } catch (e) {
         console.error('[MySQL Error] getChampionships:', e);
       }
-    }
-
-    if (this.championships.length === 0) {
-      const defaultChamp = await this.createChampionship({ id: 'champ_1', name: 'Meu Campeonato' });
-      return [defaultChamp];
     }
 
     return this.championships;
   }
 
   async getChampionshipById(id: string): Promise<Championship | undefined> {
+    if (!id) return undefined;
     if (isMysqlConnected && pool) {
       try {
         const [rows]: any = await pool.query('SELECT * FROM championships WHERE id = ? OR slug = ? LIMIT 1', [id, id]);
@@ -124,17 +118,13 @@ class TournamentStore {
             rules: typeof r.rules === 'string' ? JSON.parse(r.rules) : r.rules,
           };
         }
+        return undefined;
       } catch (e) {
         console.error('[MySQL Error] getChampionshipById:', e);
       }
     }
 
-    let found = this.championships.find((c) => c.id === id || c.slug === id);
-    if (!found) {
-      const list = await this.getChampionships();
-      found = list.find((c) => c.id === id || c.slug === id) || list[0];
-    }
-    return found;
+    return this.championships.find((c) => c.id === id || c.slug === id);
   }
 
   async createChampionship(data: Partial<Championship>): Promise<Championship> {
@@ -252,7 +242,7 @@ class TournamentStore {
   async createTeam(teamData: Partial<Team>): Promise<Team> {
     const team: Team = {
       id: `team_${Date.now()}`,
-      championshipId: teamData.championshipId || 'champ_1',
+      championshipId: teamData.championshipId || '',
       name: teamData.name || 'Novo Time',
       shortName: teamData.shortName || 'NTV',
       primaryColor: teamData.primaryColor || '#2563eb',
@@ -380,7 +370,7 @@ class TournamentStore {
   async createPlayer(playerData: Partial<Player>): Promise<Player> {
     const player: Player = {
       id: `play_${Date.now()}`,
-      championshipId: playerData.championshipId || 'champ_1',
+      championshipId: playerData.championshipId || '',
       teamId: playerData.teamId || null,
       fullName: playerData.fullName || 'Novo Jogador',
       displayName: playerData.displayName || playerData.fullName || 'Jogador',
@@ -398,7 +388,7 @@ class TournamentStore {
       paymentDate: playerData.paymentDate,
       notes: playerData.notes || '',
       skillLevel: playerData.skillLevel || 3,
-      photoUrl: playerData.photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      photoUrl: playerData.photoUrl || `https://avatarapi.runflare.run/public?usearname=${encodeURIComponent(playerData.displayName || playerData.fullName || 'Jogador')}`,
       stats: {
         matchesPlayed: 0,
         starts: 0,
@@ -633,7 +623,7 @@ class TournamentStore {
   async createMatch(matchData: Partial<Match>): Promise<Match> {
     const match: Match = {
       id: `match_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-      championshipId: matchData.championshipId || 'champ_1',
+      championshipId: matchData.championshipId || '',
       phaseId: matchData.phaseId || 'phase_1',
       groupId: matchData.groupId,
       roundNumber: matchData.roundNumber || 1,

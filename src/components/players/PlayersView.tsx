@@ -116,10 +116,18 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
   const handleSavePlayer = () => {
     if (!editingPlayer || !editingPlayer.fullName) return;
 
+    const nameForAvatar = editingPlayer.displayName || editingPlayer.fullName || 'Jogador';
+    const defaultAvatarUrl = `https://avatarapi.runflare.run/public?usearname=${encodeURIComponent(nameForAvatar)}`;
+
+    const playerToSave = {
+      ...editingPlayer,
+      photoUrl: editingPlayer.photoUrl || defaultAvatarUrl,
+    };
+
     if (editingPlayer.id) {
-      onUpdatePlayer(editingPlayer.id, editingPlayer);
+      onUpdatePlayer(editingPlayer.id, playerToSave);
     } else {
-      onCreatePlayer(editingPlayer);
+      onCreatePlayer(playerToSave);
     }
 
     setIsModalOpen(false);
@@ -369,8 +377,17 @@ export const PlayersView: React.FC<PlayersViewProps> = ({
                 </label>
                 <div className="flex items-center gap-3">
                   <div className="relative w-14 h-14 rounded-2xl bg-slate-200 dark:bg-slate-700 border-2 border-emerald-500 overflow-hidden flex items-center justify-center shrink-0 shadow-inner group">
-                    {editingPlayer.photoUrl ? (
-                      <img src={editingPlayer.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    {editingPlayer.photoUrl || editingPlayer.fullName || editingPlayer.displayName ? (
+                      <img
+                        src={
+                          editingPlayer.photoUrl ||
+                          `https://avatarapi.runflare.run/public?usearname=${encodeURIComponent(
+                            editingPlayer.displayName || editingPlayer.fullName || 'Jogador'
+                          )}`
+                        }
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <Users className="w-6 h-6 text-slate-400" />
                     )}

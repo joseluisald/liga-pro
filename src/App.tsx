@@ -92,7 +92,7 @@ export function App() {
 
   // Core Data States
   const [championships, setChampionships] = useState<Championship[]>([]);
-  const [selectedChampId, setSelectedChampId] = useState<string>('champ_1');
+  const [selectedChampId, setSelectedChampId] = useState<string>('');
   const [isChampHubOpen, setIsChampHubOpen] = useState<boolean>(false);
 
   const [championship, setChampionship] = useState<Championship | null>(null);
@@ -109,6 +109,19 @@ export function App() {
 
   // Initial Data Fetch
   const fetchData = async (champId: string = selectedChampId) => {
+    if (!champId) {
+      setChampionship(null);
+      setTeams([]);
+      setPlayers([]);
+      setPhases([]);
+      setGroups([]);
+      setMatches([]);
+      setStandings([]);
+      setSuspensions([]);
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const data = await api.getChampionshipData(champId);
@@ -123,6 +136,7 @@ export function App() {
       setEvents(Array.isArray(data.events) ? data.events : []);
     } catch (err) {
       console.error('Failed to load championship data:', err);
+      setChampionship(null);
     } finally {
       setLoading(false);
     }
@@ -133,15 +147,50 @@ export function App() {
       const list = await api.fetchChampionships();
       if (Array.isArray(list) && list.length > 0) {
         setChampionships(list);
+        setSelectedChampId((prev) => {
+          if (prev && list.some((c) => c.id === prev)) return prev;
+          return list[0].id;
+        });
+      } else {
+        setChampionships([]);
+        setSelectedChampId('');
+        setChampionship(null);
+        setTeams([]);
+        setPlayers([]);
+        setPhases([]);
+        setGroups([]);
+        setMatches([]);
+        setStandings([]);
+        setSuspensions([]);
+        setEvents([]);
       }
     } catch (err) {
       console.error('Failed to load championships list:', err);
+      setChampionships([]);
+      setSelectedChampId('');
+      setChampionship(null);
     }
   };
 
   useEffect(() => {
     fetchChampionshipsList();
-    fetchData(selectedChampId);
+  }, []);
+
+  useEffect(() => {
+    if (selectedChampId) {
+      fetchData(selectedChampId);
+    } else {
+      setChampionship(null);
+      setTeams([]);
+      setPlayers([]);
+      setPhases([]);
+      setGroups([]);
+      setMatches([]);
+      setStandings([]);
+      setSuspensions([]);
+      setEvents([]);
+      setLoading(false);
+    }
   }, [selectedChampId]);
 
   const handleSelectChampionship = (champId: string) => {
