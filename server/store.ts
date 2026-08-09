@@ -1141,7 +1141,15 @@ class TournamentStore {
     const champ = await this.getChampionshipById(championshipId);
     if (!champ) return;
 
-    const players = await this.getPlayers(championshipId);
+    const rawPlayers = await this.getPlayers(championshipId);
+    // Deduplicate players by ID
+    const playerMap = new Map<string, Player>();
+    for (const p of rawPlayers) {
+      if (!playerMap.has(p.id)) {
+        playerMap.set(p.id, p);
+      }
+    }
+    const players = Array.from(playerMap.values());
     const matches = await this.getMatches(championshipId);
 
     // Reset player stats
@@ -1213,8 +1221,9 @@ class TournamentStore {
     for (const p of players) {
       if (p.stats.yellowCards >= cardLimit) {
         const team = await this.getTeamById(p.teamId || '');
+        const randId = Math.floor(Math.random() * 1000000);
         const newSusp: Suspension = {
-          id: `susp_${p.id}_${Date.now()}`,
+          id: `susp_${p.id}_${Date.now()}_${randId}`,
           championshipId,
           playerId: p.id,
           playerName: p.fullName,
@@ -1230,7 +1239,13 @@ class TournamentStore {
         if (isMysqlConnected && pool) {
           await pool.query(
             `INSERT INTO suspensions (id, championshipId, playerId, playerName, teamName, matchId, gamesCount, gamesServed, reason, active, createdAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+             playerName = VALUES(playerName),
+             teamName = VALUES(teamName),
+             gamesCount = VALUES(gamesCount),
+             reason = VALUES(reason),
+             active = VALUES(active)`,
             [newSusp.id, newSusp.championshipId, newSusp.playerId, newSusp.playerName, newSusp.teamName, newSusp.matchId, newSusp.gamesCount, newSusp.gamesServed, newSusp.reason, newSusp.active, newSusp.createdAt]
           );
         } else {
@@ -1239,8 +1254,9 @@ class TournamentStore {
         await this.updatePlayer(p.id, { status: 'SUSPENDED' });
       } else if (p.stats.redCards > 0) {
         const team = await this.getTeamById(p.teamId || '');
+        const randId = Math.floor(Math.random() * 1000000);
         const newSusp: Suspension = {
-          id: `susp_red_${p.id}_${Date.now()}`,
+          id: `susp_red_${p.id}_${Date.now()}_${randId}`,
           championshipId,
           playerId: p.id,
           playerName: p.fullName,
@@ -1256,7 +1272,13 @@ class TournamentStore {
         if (isMysqlConnected && pool) {
           await pool.query(
             `INSERT INTO suspensions (id, championshipId, playerId, playerName, teamName, matchId, gamesCount, gamesServed, reason, active, createdAt)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+             playerName = VALUES(playerName),
+             teamName = VALUES(teamName),
+             gamesCount = VALUES(gamesCount),
+             reason = VALUES(reason),
+             active = VALUES(active)`,
             [newSusp.id, newSusp.championshipId, newSusp.playerId, newSusp.playerName, newSusp.teamName, newSusp.matchId, newSusp.gamesCount, newSusp.gamesServed, newSusp.reason, newSusp.active, newSusp.createdAt]
           );
         } else {
