@@ -246,32 +246,32 @@ export const MatchesView: React.FC<MatchesViewProps> = ({
                 </div>
 
                 {/* Scoreboard Display */}
-                <div className="flex items-center gap-4 text-slate-900 dark:text-white font-black text-base sm:text-lg">
+                <div className="flex items-center justify-center gap-2 sm:gap-4 text-slate-900 dark:text-white font-black text-xs sm:text-base md:text-lg w-full md:w-auto my-2 md:my-0">
                   {/* Home Team */}
-                  <div className="flex items-center gap-2 text-right justify-end w-40">
-                    <span className="truncate">{home?.name}</span>
-                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: home?.primaryColor }} />
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-right justify-end w-28 sm:w-36 md:w-44">
+                    <span className="truncate text-xs sm:text-sm md:text-base">{home?.name || 'Time A'}</span>
+                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0" style={{ backgroundColor: home?.primaryColor || '#10b981' }} />
                   </div>
 
                   {/* Score */}
-                  <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-xl flex items-center gap-2">
+                  <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 dark:bg-slate-800 rounded-xl font-mono text-base sm:text-xl flex items-center gap-1.5 sm:gap-2 shrink-0">
                     <span>{m.status === 'SCHEDULED' ? '-' : m.homeScore}</span>
                     <span className="text-slate-400 font-sans text-xs">x</span>
                     <span>{m.status === 'SCHEDULED' ? '-' : m.awayScore}</span>
                   </div>
 
                   {/* Away Team */}
-                  <div className="flex items-center gap-2 text-left justify-start w-40">
-                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: away?.primaryColor }} />
-                    <span className="truncate">{away?.name}</span>
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-left justify-start w-28 sm:w-36 md:w-44">
+                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full shrink-0" style={{ backgroundColor: away?.primaryColor || '#3b82f6' }} />
+                    <span className="truncate text-xs sm:text-sm md:text-base">{away?.name || 'Time B'}</span>
                   </div>
                 </div>
 
                 {/* Date / Location & Actions */}
-                <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                  <div className="text-right text-xs text-slate-500">
+                <div className="flex flex-wrap items-center justify-between md:justify-end gap-2 sm:gap-3 w-full md:w-auto border-t md:border-t-0 pt-3 md:pt-0 border-slate-100 dark:border-slate-800">
+                  <div className="text-left md:text-right text-xs text-slate-500">
                     <p className="font-semibold">{m.date} às {m.time}</p>
-                    <p className="text-[10px]">{m.location}</p>
+                    <p className="text-[10px] truncate max-w-[150px]">{m.location}</p>
                   </div>
 
                   <button

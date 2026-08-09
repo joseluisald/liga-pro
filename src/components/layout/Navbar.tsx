@@ -12,7 +12,9 @@ import {
   ExternalLink,
   ShieldAlert,
   Sliders,
-  Sparkles
+  Sparkles,
+  Menu,
+  Plus
 } from 'lucide-react';
 import { Championship, User, NotificationItem } from '../../types';
 
@@ -35,6 +37,7 @@ interface NavbarProps {
   onOpenChampionshipsHub?: () => void;
   darkMode?: boolean;
   setDarkMode?: (val: boolean) => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -56,6 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenChampionshipsHub,
   darkMode = false,
   setDarkMode,
+  onToggleMobileMenu,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const champ = championship || currentChampionship;
@@ -78,28 +82,39 @@ export const Navbar: React.FC<NavbarProps> = ({
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-8 flex items-center justify-between sticky top-0 z-40 transition-colors">
-      {/* High Density Header Info */}
-      <div className="flex items-center gap-2 sm:gap-3">
+    <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 sm:px-6 flex items-center justify-between sticky top-0 z-40 transition-colors">
+      {/* Left section: Hamburger (mobile) + Championship selector */}
+      <div className="flex items-center gap-2">
+        {onToggleMobileMenu && (
+          <button
+            onClick={onToggleMobileMenu}
+            className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl md:hidden transition-colors"
+            aria-label="Abrir menu de navegação"
+            title="Menu de navegação"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
         <button
           onClick={onOpenChampionshipsHub}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer group text-left"
+          className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer group text-left max-w-[170px] sm:max-w-xs md:max-w-md"
           title="Clique para Selecionar ou Cadastrar Outro Campeonato"
         >
-          <Trophy className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-          <h2 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100 truncate max-w-[180px] sm:max-w-md group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+          <Trophy className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <h2 className="text-xs sm:text-sm font-black text-slate-800 dark:text-slate-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
             {champ?.name || 'Selecione ou Crie um Campeonato'}
           </h2>
-          <span className="text-[10px] text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 font-bold">
+          <span className="text-[10px] text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200 font-bold shrink-0">
             ▼
           </span>
         </button>
       </div>
 
-      {/* High Density Right Actions */}
+      {/* Right section: Role switcher & New Match button & User badge */}
       <div className="flex items-center gap-1.5 sm:gap-3">
-        {/* Role Switcher */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium">
+        {/* Role Switcher (hidden on very small screens, accessible via drawer) */}
+        <div className="hidden sm:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium">
           <button
             onClick={() => handleRoleChange('ADMIN')}
             title="Modo Administrador"
@@ -135,21 +150,23 @@ export const Navbar: React.FC<NavbarProps> = ({
           </button>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Button: + Nova Partida */}
         <button
           onClick={handleNewMatchClick}
-          className="px-2.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+          className="px-2.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 active:scale-95 rounded-xl shadow-sm transition-all flex items-center gap-1 cursor-pointer shrink-0"
           title="Agendar Nova Partida"
         >
-          <span>+ Nova Partida</span>
+          <Plus className="w-3.5 h-3.5 sm:hidden" />
+          <span className="hidden sm:inline">+ Nova Partida</span>
+          <span className="sm:hidden text-[11px] font-bold">Jogo</span>
         </button>
 
         {/* User Badge & Hub button */}
         {currentUser && (
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200 dark:border-slate-800">
+          <div className="flex items-center gap-2 pl-1.5 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
             <button
               onClick={onOpenChampionshipsHub}
-              className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+              className="flex items-center gap-2 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
               title="Central de Campeonatos / Perfil do Usuário"
             >
               <div className="w-7 h-7 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center overflow-hidden border border-emerald-400">
@@ -172,3 +189,4 @@ export const Navbar: React.FC<NavbarProps> = ({
     </header>
   );
 };
+
